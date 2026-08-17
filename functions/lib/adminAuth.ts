@@ -132,9 +132,29 @@ function extractToken(request: Request): string | null {
   return null;
 }
 
-function audienceMatches(aud: unknown, expected: string): boolean {
-  if (typeof aud === 'string') return aud === expected;
-  if (Array.isArray(aud)) return aud.some((value) => value === expected);
+/**
+ * 許可する AUD を解釈する（カンマ区切りで複数指定できる）。
+ *
+ * Cloudflare Pages を Access で保護すると、ホストごとに別の Access アプリケーションが
+ * 作られることがあり（例: 本体 `project.pages.dev` とプレビュー `*.project.pages.dev`）、
+ * それぞれ別の AUD を持つ。環境ごとに値を変えると設定ミスの原因になるため、
+ * 複数の AUD をまとめて指定できるようにする。
+ *
+ * 受け付けるのは運用者が明示的に設定した AUD のみで、
+ * 署名・iss・exp/nbf の検証はいずれの場合も同じ厳密さで行う。
+ */
+export function parseAudiences(input: string): string[] {
+  return input
+    .split(',')
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+}
+
+function audienceMatches(aud: unknown, expected: readonly string[]): boolean {
+  if (typeof aud === 'string') return expected.includes(aud);
+  if (Array.isArray(aud)) {
+    return aud.some((value) => typeof value === 'string' && expected.includes(value));
+  }
   return false;
 }
 
@@ -142,7 +162,7 @@ function audienceMatches(aud: unknown, expected: string): boolean {
 async function verifyAccessJwt(
   token: string,
   teamDomain: string,
-  audience: string,
+  audiences: readonly string[],
 ): Promise<AdminIdentity | null> {
   const segments = token.split('.');
   if (segments.length !== 3) return null;
@@ -174,7 +194,7 @@ async function verifyAccessJwt(
   if (!verified) return null;
 
   if (payload.iss !== `https://${teamDomain}`) return null;
-  if (!audienceMatches(payload.aud, audience)) return null;
+  if (!audienceMatches(payload.aud, audiences)) return null;
 
   const now = Math.floor(Date.now() / 1000);
   const exp = typeof payload.exp === 'number' ? payload.exp : null;
@@ -207,9 +227,9 @@ export async function authenticateAdmin(request: Request, env: Env): Promise<Aut
   const teamDomain = env.ADMIN_ACCESS_TEAM_DOMAIN
     ? normalizeTeamDomain(env.ADMIN_ACCESS_TEAM_DOMAIN)
     : null;
-  const audience = env.ADMIN_ACCESS_AUD?.trim() || null;
+  const audiences = env.ADMIN_ACCESS_AUD ? parseAudiences(env.ADMIN_ACCESS_AUD) : [];
 
-  if (!teamDomain || !audience) {
+  if (!teamDomain || audiences.length === 0) {
     // 設定が無い場合は開けない。ローカル開発のみ明示フラグで迂回できる。
     if (isLocalDevBypass(request, env)) {
       return { ok: true, identity: { email: null } };
@@ -224,7 +244,7 @@ export async function authenticateAdmin(request: Request, env: Env): Promise<Aut
   }
 
   try {
-    const identity = await verifyAccessJwt(token, teamDomain, audience);
+    const identity = await verifyAccessJwt(token, teamDomain, audiences);
     if (!identity) return { ok: false, reason: 'unauthenticated' };
     return { ok: true, identity };
   } catch {

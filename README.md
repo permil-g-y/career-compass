@@ -141,7 +141,7 @@ Cloudflare ダッシュボードでの設定：
 | 変数名 | 値 |
 |---|---|
 | `ADMIN_ACCESS_TEAM_DOMAIN` | Zero Trust のチーム名（例: `your-team` または `your-team.cloudflareaccess.com`） |
-| `ADMIN_ACCESS_AUD` | 手順4の AUD Tag |
+| `ADMIN_ACCESS_AUD` | 手順4の AUD Tag。ホストごとに Access アプリが分かれる場合はカンマ区切りで複数指定できる |
 
 **この2つが未設定の場合、管理画面・管理APIは常に 403 を返す（fail-closed）。**
 設定漏れで個人情報が露出することはない。

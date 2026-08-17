@@ -36,7 +36,11 @@ export interface Env {
 
   /** Cloudflare Access のチーム名（例: your-team / your-team.cloudflareaccess.com） */
   ADMIN_ACCESS_TEAM_DOMAIN?: string;
-  /** Cloudflare Access アプリケーションの Application Audience (AUD) Tag */
+  /**
+   * Cloudflare Access アプリケーションの Application Audience (AUD) Tag。
+   * ホストごとに Access アプリが分かれる場合（本体とプレビューなど）は
+   * カンマ区切りで複数指定できる。
+   */
   ADMIN_ACCESS_AUD?: string;
   /**
    * ローカル開発（wrangler pages dev）でのみ認証を迂回するフラグ。
