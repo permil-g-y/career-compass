@@ -7,7 +7,14 @@ dist/
 
 # --- 社内資料・デザイン原本はリポジトリ管理対象外（ローカルにのみ保持） ---
 Career_Compass_MVP_確定版要件定義書.md
+Career_Compass_admin-requirements.md
 ChatGPT Image *.md
 素材/
 Career Compass診断アプリ制作/
 Career Compass診断アプリ制作.zip
+
+# Cloudflare Pages のローカル用シークレット（管理画面の開発時のみ使用）
+.dev.vars
+
+# wrangler のローカル状態（ローカルD1のデータ）
+.wrangler/
