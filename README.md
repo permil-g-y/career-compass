@@ -27,6 +27,21 @@ npm run dev
 npm run build
 ```
 
+## デプロイ（Cloudflare Pages）
+
+静的SPAのため Cloudflare Pages にそのまま載る。サーバー処理・環境変数・外部API通信は無い。
+
+| 項目 | 値 |
+|---|---|
+| Framework preset | None（または Vite） |
+| Build command | `npm run build` |
+| Build output directory | `dist` |
+| Root directory | （空欄＝リポジトリ直下） |
+| Node.js バージョン | `.node-version` で 22 を指定済み |
+
+クライアントサイドルーターを使っていない（URLは `/` のみ）ため、SPAフォールバック（`_redirects`）は不要。
+`vite.config.ts` の `base: './'` により、アセットは相対パスで解決される。
+
 ## ディレクトリ構成
 
 ```
