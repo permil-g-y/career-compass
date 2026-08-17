@@ -14,3 +14,9 @@ export const ANALYZE_STEP_DURATION = 620;
 
 /** 詳細結果アンロック時の演出時間（ms） */
 export const SUBMIT_DELAY = 750;
+
+/** 診断結果の保存API（Cloudflare Pages Functions） */
+export const API_ENDPOINT = '/api/diagnoses';
+
+/** 保存APIのタイムアウト（ms）。超過しても結果表示はブロックしない。 */
+export const API_TIMEOUT_MS = 8000;

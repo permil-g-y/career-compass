@@ -10,6 +10,7 @@ import { createEmptyAnswers, runDiagnosis } from './lib/diagnosis';
 import { EMPTY_LEAD_ERRORS, hasLeadFormError, normalizePhone, validateLeadForm } from './lib/validation';
 import { buildDiagnosisRecord, createDiagnosisId } from './storage/repository';
 import { getRepository } from './storage/localStorageRepository';
+import { getRemoteRepository } from './storage/d1Repository';
 import { AnalyzingScreen } from './screens/AnalyzingScreen';
 import { DetailResultScreen } from './screens/DetailResultScreen';
 import { LeadFormScreen } from './screens/LeadFormScreen';
@@ -149,24 +150,34 @@ export function App() {
     setErrors(nextErrors);
     // 入力エラーが発生しても診断回答は保持する
     if (hasLeadFormError(nextErrors)) return;
+    if (!result || !diagnosedAt) return;
 
     setSubmitting(true);
     clearTimers();
-    timerRef.current = window.setTimeout(() => {
+
+    const record = buildDiagnosisRecord({
+      diagnosisId,
+      diagnosedAt,
+      answers,
+      result,
+      lead: { name: name.trim(), phone: normalizePhone(phone), phoneRaw: phone },
+    });
+
+    // Cloudflare D1 への保存と、既存の演出時間（SUBMIT_DELAY）を並行して待つ。
+    // 保存に失敗しても回答・結果は手元に残し、詳細結果の表示自体は止めない。
+    const saveToD1 = getRemoteRepository()
+      .save(record)
+      .then(() => true)
+      .catch(() => false);
+    const minimumDelay = new Promise<void>((resolve) => {
+      timerRef.current = window.setTimeout(resolve, SUBMIT_DELAY);
+    });
+
+    void Promise.all([saveToD1, minimumDelay]).then(([synced]) => {
+      void getRepository().save({ ...record, synced_to_d1: synced });
       setSubmitting(false);
-      if (result && diagnosedAt) {
-        void getRepository().save(
-          buildDiagnosisRecord({
-            diagnosisId,
-            diagnosedAt,
-            answers,
-            result,
-            lead: { name: name.trim(), phone: normalizePhone(phone), phoneRaw: phone },
-          }),
-        );
-      }
       goTo('detail');
-    }, SUBMIT_DELAY);
+    });
   }, [answers, clearTimers, diagnosedAt, diagnosisId, goTo, name, phone, result, submitting]);
 
   const handleRestart = useCallback(() => {

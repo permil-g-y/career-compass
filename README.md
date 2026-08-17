@@ -42,6 +42,33 @@ npm run build
 クライアントサイドルーターを使っていない（URLは `/` のみ）ため、SPAフォールバック（`_redirects`）は不要。
 `vite.config.ts` の `base: './'` により、アセットは相対パスで解決される。
 
+## データ保存（Cloudflare D1）
+
+氏名・電話番号の登録が完了した時点で、診断回答・リード情報・診断結果を
+Cloudflare D1 へ1レコードとして保存する。すべて同一の `diagnosis_id` に紐付く。
+
+| レイヤー | ファイル |
+|---|---|
+| スキーマ | `migrations/0001_create_diagnoses.sql` |
+| 保存API | `functions/api/diagnoses.ts`（Pages Functions） |
+| 送信側 | `src/storage/d1Repository.ts` |
+| ペイロード変換 | `src/storage/repository.ts` の `buildDiagnosisPayload()` |
+
+- D1 binding 名は `DB`（`context.env.DB`）
+- `POST /api/diagnoses` … 保存。同じ `diagnosis_id` の再送信は上書き（重複しない）
+- `GET /api/diagnoses` … 保存状況の確認用。環境変数 `ADMIN_TOKEN` が未設定なら404、
+  設定時も `x-admin-token` ヘッダー必須。**氏名・電話番号は返さない**
+- 氏名・電話番号は console へ出力しない
+- 保存に失敗しても診断回答・結果は失われず、詳細結果の表示も止まらない。
+  失敗したレコードは localStorage 側に `synced_to_d1: false` として残る
+
+localStorage は診断途中の回答保持と手元での確認用として併用する。
+
+### ローカルでの動作
+
+`npm run dev` / `npm run preview` には Pages Functions が無いため、保存APIは404になる
+（診断そのものは最後まで動作する）。D1込みで確認する場合は `wrangler pages dev` を使う。
+
 ## ディレクトリ構成
 
 ```
@@ -60,8 +87,14 @@ src/
     diagnosis.ts              診断エンジン（純粋関数 runDiagnosis）
     validation.ts             氏名・電話番号のバリデーションと正規化
   storage/
-    repository.ts             保存インターフェース・レコード組み立て
-    localStorageRepository.ts localStorage実装（DB差し替え口）
+    repository.ts             保存インターフェース・レコード組み立て・D1ペイロード変換
+    localStorageRepository.ts localStorage実装（端末内の保持）
+    d1Repository.ts           Cloudflare D1実装（保存APIの呼び出し）
+functions/
+  api/diagnoses.ts            保存API（POST）・確認API（GET）
+  types.ts                    D1 / Pages Functions の最小型定義
+migrations/
+  0001_create_diagnoses.sql   D1スキーマ
   components/                 共通UI（Logo / BackButton / ProgressBar / QuestionCard /
                               AnswerOption / PrimaryButton / GradeBadge / ReadinessItem /
                               Roadmap / ActionCard / WeaknessCard / SectionHeading / theme）

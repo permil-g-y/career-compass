@@ -152,6 +152,84 @@ export interface LeadInfo {
   phoneRaw: string;
 }
 
+/**
+ * D1 保存用のフラットなペイロード。
+ * migrations/0001_create_diagnoses.sql のカラムと1対1で対応する。
+ * クライアント（送信側）と Pages Functions（受信側）で共有する。
+ */
+export interface DiagnosisPayload {
+  diagnosis_id: string;
+  created_at: string;
+  age: number | null;
+  graduation_year: string | null;
+  q1: string | null;
+  q2: string | null;
+  q3: string | null;
+  q4: string | null;
+  q5: string | null;
+  q6: string | null;
+  q7: string | null;
+  q8: string | null;
+  q9: string | null;
+  q10: string | null;
+  name: string;
+  phone: string;
+  overall_score: number | null;
+  overall_grade: Grade | null;
+  career_type: string | null;
+  self_understanding: number | null;
+  gakuchika: number | null;
+  career_design: number | null;
+  company_selection: number | null;
+  application_preparation: number | null;
+  interview_preparation: number | null;
+  selection_experience: number | null;
+  roadmap_current_step: number | null;
+  weakness_1: string | null;
+  weakness_2: string | null;
+  weakness_3: string | null;
+  action_1: ActionId | null;
+  action_2: ActionId | null;
+  action_3: ActionId | null;
+}
+
+/** D1 保存カラムの並び（INSERT 文と bind 値の対応をずらさないための唯一の定義） */
+export const DIAGNOSIS_COLUMNS = [
+  'diagnosis_id',
+  'created_at',
+  'age',
+  'graduation_year',
+  'q1',
+  'q2',
+  'q3',
+  'q4',
+  'q5',
+  'q6',
+  'q7',
+  'q8',
+  'q9',
+  'q10',
+  'name',
+  'phone',
+  'overall_score',
+  'overall_grade',
+  'career_type',
+  'self_understanding',
+  'gakuchika',
+  'career_design',
+  'company_selection',
+  'application_preparation',
+  'interview_preparation',
+  'selection_experience',
+  'roadmap_current_step',
+  'weakness_1',
+  'weakness_2',
+  'weakness_3',
+  'action_1',
+  'action_2',
+  'action_3',
+] as const satisfies readonly (keyof DiagnosisPayload)[];
+
 /** 保存レコード（diagnosis_id に全情報を紐付ける） */
 export interface DiagnosisRecord {
   diagnosis_id: string;
@@ -164,6 +242,8 @@ export interface DiagnosisRecord {
     [K in MainQuestionKey]: { index: number | null; label: string | null };
   };
   lead: LeadInfo | null;
+  /** D1 への保存が完了したか（保存失敗時に手元で追跡するためのフラグ） */
+  synced_to_d1?: boolean;
   result: {
     overall_score: number;
     overall_grade: Grade;

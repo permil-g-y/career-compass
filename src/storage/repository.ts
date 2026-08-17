@@ -1,20 +1,23 @@
 /**
  * 診断データの保存インターフェース。
  *
- * MVP では localStorage 実装を使用する。
- * Supabase 等の DB へ差し替える場合は DiagnosisRepository を実装した
- * 別クラスを用意し、getRepository() の返却値を差し替えるだけでよい。
+ * - 端末内の保持は localStorage 実装（LocalStorageDiagnosisRepository）
+ * - 永続保存は Cloudflare D1 実装（D1DiagnosisRepository）
+ *
  * UI・診断ロジック側はこのインターフェースにしか依存しない。
+ * 保存先を差し替える場合も、このインターフェースを実装した別クラスを用意すればよい。
  */
 import { optionLabelOf } from '../config/diagnosis/questions';
 import { MAIN_QUESTION_KEYS } from '../config/diagnosis/questions';
 import { READINESS_ORDER } from '../config/diagnosis/scoring';
 import type {
   AnswerState,
+  DiagnosisPayload,
   DiagnosisRecord,
   DiagnosisResult,
   Grade,
   LeadInfo,
+  MainQuestionKey,
   ReadinessKey,
 } from '../types/diagnosis';
 import { GRADUATION_OPTIONS } from '../config/diagnosis/questions';
@@ -22,8 +25,6 @@ import { GRADUATION_OPTIONS } from '../config/diagnosis/questions';
 export interface DiagnosisRepository {
   /** 診断結果とリード情報を保存する */
   save(record: DiagnosisRecord): Promise<void>;
-  /** 保存済みレコードを取得する（MVPの動作確認用） */
-  list(): Promise<DiagnosisRecord[]>;
 }
 
 /** 診断ID を採番する */
@@ -94,5 +95,54 @@ export function buildDiagnosisRecord(params: {
           action_3: result.actions[2]?.id ?? null,
         }
       : null,
+  };
+}
+
+/**
+ * 保存レコードを D1 用のフラットなペイロードへ変換する。
+ * カラム構成は migrations/0001_create_diagnoses.sql と対応する。
+ *
+ * リード情報が未取得（診断のみ完了）のレコードは D1 保存の対象外とし null を返す。
+ */
+export function buildDiagnosisPayload(record: DiagnosisRecord): DiagnosisPayload | null {
+  if (!record.lead || !record.result) return null;
+
+  const answerLabel = (key: MainQuestionKey): string | null => record.answers[key].label;
+  const readiness = record.result.readiness;
+
+  return {
+    diagnosis_id: record.diagnosis_id,
+    created_at: record.diagnosed_at,
+    age: record.profile.age,
+    graduation_year: record.profile.graduation_year,
+    q1: answerLabel('q1'),
+    q2: answerLabel('q2'),
+    q3: answerLabel('q3'),
+    q4: answerLabel('q4'),
+    q5: answerLabel('q5'),
+    q6: answerLabel('q6'),
+    q7: answerLabel('q7'),
+    q8: answerLabel('q8'),
+    q9: answerLabel('q9'),
+    q10: answerLabel('q10'),
+    name: record.lead.name,
+    phone: record.lead.phone,
+    overall_score: record.result.overall_score,
+    overall_grade: record.result.overall_grade,
+    career_type: record.result.career_type,
+    self_understanding: readiness.self_understanding.score,
+    gakuchika: readiness.gakuchika.score,
+    career_design: readiness.career_design.score,
+    company_selection: readiness.company_selection.score,
+    application_preparation: readiness.application_preparation.score,
+    interview_preparation: readiness.interview_preparation.score,
+    selection_experience: readiness.selection_experience.score,
+    roadmap_current_step: record.result.roadmap_current_step,
+    weakness_1: record.result.weakness_1,
+    weakness_2: record.result.weakness_2,
+    weakness_3: record.result.weakness_3,
+    action_1: record.result.action_1,
+    action_2: record.result.action_2,
+    action_3: record.result.action_3,
   };
 }
