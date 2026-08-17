@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.DS_Store
+*.local
+*.tsbuildinfo
+.claude/
+
+# --- 社内資料・デザイン原本はリポジトリ管理対象外（ローカルにのみ保持） ---
+Career_Compass_MVP_確定版要件定義書.md
+ChatGPT Image *.md
+素材/
+Career Compass診断アプリ制作/
+Career Compass診断アプリ制作.zip
