@@ -55,14 +55,30 @@ Cloudflare D1 へ1レコードとして保存する。すべて同一の `diagno
 | ペイロード変換 | `src/storage/repository.ts` の `buildDiagnosisPayload()` |
 
 - D1 binding 名は `DB`（`context.env.DB`）
-- `POST /api/diagnoses` … 保存。同じ `diagnosis_id` の再送信は上書き（重複しない）
-- `GET /api/diagnoses` … 保存状況の確認用。環境変数 `ADMIN_TOKEN` が未設定なら404、
-  設定時も `x-admin-token` ヘッダー必須。**氏名・電話番号は返さない**
-- 氏名・電話番号は console へ出力しない
+- 公開APIは `POST /api/diagnoses` の**1本のみ**。同じ `diagnosis_id` の再送信は上書き（重複しない）
 - 保存に失敗しても診断回答・結果は失われず、詳細結果の表示も止まらない。
   失敗したレコードは localStorage 側に `synced_to_d1: false` として残る
 
-localStorage は診断途中の回答保持と手元での確認用として併用する。
+localStorage は診断途中の回答保持用として併用する。
+
+### セキュリティ方針
+
+個人情報（氏名・電話番号）を扱うため、以下を設計上の制約とする。
+
+- **D1 へ触れるのは Pages Functions のサーバー側のみ。** ブラウザから D1 へは到達できない
+- **保存データを読み出すAPIは提供しない。** `diagnosis_id` 等を指定して
+  第三者の診断結果・氏名・電話番号を取得できる経路を作らない。
+  保存内容の閲覧は Cloudflare ダッシュボードの D1 コンソールから行う
+- APIレスポンスに氏名・電話番号を含めない（成功時の応答は `{"ok":true}` のみ）
+- 氏名・電話番号を console／ログへ出力しない。エラーログはエラー種別のみ
+- エラーレスポンスは固定文言のみ。内部構造・SQL・binding の有無を推測させない
+- SQL は prepared statement + bind のみ。カラム名は静的定数由来で、値は必ず bind
+- すべての入力値をサーバー側で型・範囲・長さまで検証する
+- CORS ヘッダーは付与せず、クロスオリジンからの POST は 403
+- **氏名・電話番号を localStorage へ保存しない。** 保存境界（`localStorageRepository`）で
+  必ず除去する。旧バージョンが保存した値は起動時に自動削除する
+- 送信完了後、電話番号はブラウザ上に保持しない
+- レスポンスヘッダーは `public/_headers` で設定（nosniff / Referrer-Policy / X-Frame-Options 等）
 
 ### ローカルでの動作
 
@@ -91,8 +107,9 @@ src/
     localStorageRepository.ts localStorage実装（端末内の保持）
     d1Repository.ts           Cloudflare D1実装（保存APIの呼び出し）
 functions/
-  api/diagnoses.ts            保存API（POST）・確認API（GET）
+  api/diagnoses.ts            保存API（POSTのみ / 読み出しAPIは提供しない）
   types.ts                    D1 / Pages Functions の最小型定義
+public/_headers               レスポンスヘッダー（セキュリティ）
 migrations/
   0001_create_diagnoses.sql   D1スキーマ
   components/                 共通UI（Logo / BackButton / ProgressBar / QuestionCard /

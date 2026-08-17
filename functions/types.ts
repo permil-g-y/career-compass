@@ -24,15 +24,13 @@ export interface D1Database {
   exec(query: string): Promise<unknown>;
 }
 
-/** Cloudflare Pages の binding */
+/**
+ * Cloudflare Pages の binding。
+ * サーバー側でのみ参照され、フロントエンドのバンドルには一切含まれない。
+ */
 export interface Env {
   /** D1 binding 名は DB を前提とする */
   DB: D1Database;
-  /**
-   * 開発用GETエンドポイントのアクセストークン。
-   * 未設定の場合、GETエンドポイントは無効（404）になる。
-   */
-  ADMIN_TOKEN?: string;
 }
 
 export interface EventContext<E> {

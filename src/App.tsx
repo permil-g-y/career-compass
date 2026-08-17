@@ -9,7 +9,7 @@ import {
 import { createEmptyAnswers, runDiagnosis } from './lib/diagnosis';
 import { EMPTY_LEAD_ERRORS, hasLeadFormError, normalizePhone, validateLeadForm } from './lib/validation';
 import { buildDiagnosisRecord, createDiagnosisId } from './storage/repository';
-import { getRepository } from './storage/localStorageRepository';
+import { getRepository, purgeLegacyPersonalInfo } from './storage/localStorageRepository';
 import { getRemoteRepository } from './storage/d1Repository';
 import { AnalyzingScreen } from './screens/AnalyzingScreen';
 import { DetailResultScreen } from './screens/DetailResultScreen';
@@ -52,6 +52,11 @@ export function App() {
   }, []);
 
   useEffect(() => clearTimers, [clearTimers]);
+
+  // 旧バージョンが localStorage へ保存した氏名・電話番号を起動時に削除する
+  useEffect(() => {
+    purgeLegacyPersonalInfo();
+  }, []);
 
   const goTo = useCallback((next: Screen) => {
     setScreen(next);
@@ -160,7 +165,7 @@ export function App() {
       diagnosedAt,
       answers,
       result,
-      lead: { name: name.trim(), phone: normalizePhone(phone), phoneRaw: phone },
+      lead: { name: name.trim(), phone: normalizePhone(phone) },
     });
 
     // Cloudflare D1 への保存と、既存の演出時間（SUBMIT_DELAY）を並行して待つ。
@@ -174,7 +179,10 @@ export function App() {
     });
 
     void Promise.all([saveToD1, minimumDelay]).then(([synced]) => {
+      // localStorage 側は保存境界で氏名・電話番号を除去して書き込む
       void getRepository().save({ ...record, synced_to_d1: synced });
+      // 送信後は電話番号をブラウザ上に保持しない（氏名は結果画面の表示に使用する）
+      setPhone('');
       setSubmitting(false);
       goTo('detail');
     });

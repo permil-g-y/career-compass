@@ -143,13 +143,16 @@ export interface DiagnosisResult {
   actions: ActionResult[];
 }
 
-/** 保存用リード情報 */
+/**
+ * リード情報。
+ *
+ * D1 への送信時にのみメモリ上で組み立てる値であり、
+ * localStorage 等のブラウザ内ストレージへは保存しない。
+ */
 export interface LeadInfo {
   name: string;
   /** 正規化済み（数字のみ） */
   phone: string;
-  /** ユーザー入力そのまま */
-  phoneRaw: string;
 }
 
 /**
