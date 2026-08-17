@@ -69,7 +69,7 @@ export function LeadDetail({
   }, [load]);
 
   return (
-    <div style={{ display: 'grid', gap: 14 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 14 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <Button onClick={onBack}>← 一覧へ戻る</Button>
         {loading ? (
@@ -90,14 +90,14 @@ export function LeadDetail({
               alignItems: 'start',
             }}
           >
-            <div style={{ display: 'grid', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 14 }}>
               <DiagnosisSummary lead={lead} />
               <ReadinessTable lead={lead} />
               <AnswerList lead={lead} />
               <WeaknessAndActions lead={lead} />
             </div>
 
-            <div style={{ display: 'grid', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 14 }}>
               <SalesPanel lead={lead} onUpdated={setLead} onError={setError} />
               <ActivityForm lead={lead} onUpdated={setLead} onError={setError} />
               <ActivityTimeline lead={lead} />

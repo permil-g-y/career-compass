@@ -120,7 +120,8 @@ export function AdminDashboard({ onOpenLead }: { onOpenLead: (diagnosisId: strin
   const hasNext = offset + PAGE_SIZE < total;
 
   return (
-    <div style={{ display: 'grid', gap: 14 }}>
+    // minmax(0, 1fr)：中のテーブルの min-content 幅でページ全体が横に伸びないようにする
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 14 }}>
       <SummaryCards stats={data?.stats ?? null} />
 
       <FilterBar query={query} onChange={setQuery} onReset={() => setQuery(EMPTY_QUERY)} />

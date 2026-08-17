@@ -15,3 +15,6 @@ Career Compass診断アプリ制作.zip
 
 # Cloudflare Pages のローカル用シークレット（管理画面の開発時のみ使用）
 .dev.vars
+
+# wrangler のローカル状態（ローカルD1のデータ）
+.wrangler/

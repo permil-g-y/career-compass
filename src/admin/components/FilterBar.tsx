@@ -65,7 +65,8 @@ export function FilterBar({
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: 'minmax(200px, 1.6fr) repeat(5, minmax(110px, 1fr)) auto',
+        // 画面幅に応じて折り返す（PCファーストだが、狭い画面でも横スクロールさせない）
+        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
         gap: 10,
         alignItems: 'end',
         background: ADMIN_COLORS.surface,
@@ -74,17 +75,19 @@ export function FilterBar({
         padding: '12px 14px',
       }}
     >
-      <Field label="氏名・電話番号で検索">
-        <input
-          className="cc-admin-control"
-          type="search"
-          value={query.q}
-          placeholder="例）山田 / 08012345678"
-          autoComplete="off"
-          onChange={(event) => update('q', event.target.value)}
-          style={controlStyle}
-        />
-      </Field>
+      <div style={{ gridColumn: 'span 2', minWidth: 0 }}>
+        <Field label="氏名・電話番号で検索">
+          <input
+            className="cc-admin-control"
+            type="search"
+            value={query.q}
+            placeholder="例）山田 / 08012345678"
+            autoComplete="off"
+            onChange={(event) => update('q', event.target.value)}
+            style={controlStyle}
+          />
+        </Field>
+      </div>
 
       <Field label="営業ステータス">
         <Select
@@ -131,10 +134,6 @@ export function FilterBar({
         />
       </Field>
 
-      <Button onClick={onReset} style={{ justifySelf: 'start' }}>
-        条件クリア
-      </Button>
-
       <Field label="登録日（開始）">
         <input
           className="cc-admin-control"
@@ -169,6 +168,10 @@ export function FilterBar({
           ))}
         </select>
       </Field>
+
+      <Button onClick={onReset} style={{ justifySelf: 'start' }}>
+        条件クリア
+      </Button>
     </div>
   );
 }
