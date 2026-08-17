@@ -2,6 +2,7 @@
  * ダッシュボード上部のサマリーカード（管理画面要件定義書 8.2）
  * 値は絞り込み条件に依存しない全体集計。
  */
+import { useIsMobile } from '../hooks/useBreakpoint';
 import { ADMIN_COLORS } from '../theme';
 import type { LeadStats } from '../types';
 
@@ -13,12 +14,15 @@ const ITEMS: { key: keyof LeadStats; label: string; color: string }[] = [
 ];
 
 export function SummaryCards({ stats }: { stats: LeadStats | null }) {
+  const isMobile = useIsMobile();
+
   return (
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-        gap: 12,
+        // スマホでは 2×2 に折り返す
+        gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+        gap: isMobile ? 8 : 12,
       }}
     >
       {ITEMS.map((item) => (
@@ -28,13 +32,13 @@ export function SummaryCards({ stats }: { stats: LeadStats | null }) {
             background: ADMIN_COLORS.surface,
             border: `1px solid ${ADMIN_COLORS.line}`,
             borderRadius: 10,
-            padding: '14px 16px',
+            padding: isMobile ? '10px 12px' : '14px 16px',
           }}
         >
           <p
             style={{
               margin: 0,
-              fontSize: 12,
+              fontSize: isMobile ? 11 : 12,
               fontWeight: 700,
               color: ADMIN_COLORS.textMuted,
             }}
@@ -44,7 +48,7 @@ export function SummaryCards({ stats }: { stats: LeadStats | null }) {
           <p
             style={{
               margin: '4px 0 0',
-              fontSize: 26,
+              fontSize: isMobile ? 22 : 26,
               fontWeight: 800,
               lineHeight: 1.2,
               color: item.color,

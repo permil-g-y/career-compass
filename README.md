@@ -105,8 +105,9 @@ Career Compass で取得した診断リードを、営業担当者が確認・�
 | 管理API | `functions/api/admin/`（`_middleware.ts` / `leads/index.ts` / `leads/[id].ts` / `leads/[id]/activities.ts`） |
 | 認証 | `functions/lib/adminAuth.ts`（Cloudflare Access JWT の検証） |
 | 共通処理 | `functions/lib/http.ts` / `functions/lib/leads.ts` |
-| 営業マスタ | `src/admin/config/sales.ts`（営業ステータス・担当営業の唯一の定義） |
-| スキーマ | `migrations/0002_add_sales_management.sql` |
+| 営業ステータス | `src/admin/config/sales.ts`（コード側の固定値。サーバーと共用） |
+| 営業担当者マスタ | D1 `sales_users` テーブル（管理画面 `/admin#/settings/sales` から追加・編集） |
+| スキーマ | `migrations/0002_add_sales_management.sql` / `migrations/0003_add_sales_users.sql` |
 
 ### 管理API
 
@@ -117,6 +118,9 @@ Career Compass で取得した診断リードを、営業担当者が確認・�
 | GET | `/api/admin/leads/:id` | リード詳細（診断原本 + 営業管理情報 + 営業履歴） |
 | PATCH | `/api/admin/leads/:id` | 営業ステータス / 担当営業 / 次回対応日時の更新 |
 | POST | `/api/admin/leads/:id/activities` | 営業履歴の追加（最終対応日時なども同期更新） |
+| GET | `/api/admin/sales-users` | 営業担当者マスタ一覧（`?active=1` で有効のみ） |
+| POST | `/api/admin/sales-users` | 営業担当者の追加 |
+| PATCH | `/api/admin/sales-users/:id` | 名前 / メールアドレス / 有効・無効の変更 |
 
 一覧取得に GET と POST の2種類があるのは、検索語（氏名・電話番号）を
 URLのクエリ文字列へ載せないため。GET は `q` を受け付けない。
@@ -172,6 +176,7 @@ npx wrangler pages dev dist --d1 DB=career-compass-db
 |---|---|
 | `diagnoses` | 診断原本 + 現在の営業状態（`sales_status` / `assigned_sales` / `last_contacted_at` / `next_contact_at` / `updated_at`） |
 | `sales_activities` | 営業履歴（`diagnosis_id` / `sales_person` / `status` / `note` / `contacted_at` / `created_at`） |
+| `sales_users` | 営業担当者マスタ（`name` / `email` / `is_active`） |
 
 migration の適用：
 
@@ -179,8 +184,40 @@ migration の適用：
 npx wrangler d1 migrations apply career-compass-db --remote
 ```
 
-担当営業・営業ステータスの追加や変更は `src/admin/config/sales.ts` の配列のみを編集する
+営業ステータスの変更は `src/admin/config/sales.ts` の配列を編集する
 （フロントとサーバーの両方がこの定義を参照する）。
+
+### 営業担当者マスタ（sales_users）
+
+担当営業は D1 で管理し、**管理画面 `/admin#/settings/sales` から追加・編集できる**
+（コード修正・再デプロイは不要）。
+
+- 担当営業は `diagnoses.assigned_sales` / `sales_activities.sales_person` へ**名前**で保存する。
+  既存データの方式を維持するため、マスタは「選択できる担当者の一覧」として機能する
+- **物理削除はしない。** 退職者は `is_active = 0` で無効化する。
+  無効にすると新しい割り当て候補から外れるが、過去のリード・営業履歴の担当者名はそのまま残る
+- **名前を変更すると**、既存リードと営業履歴の担当者名も同じトランザクションで追従させる
+  （マスタに存在しない担当者名が残らないようにするため）
+- `未設定` は「担当者が未割り当て」を表す予約語で、マスタには登録できない
+- 割り当て済みリードの保存し直しを 400 にしないため、サーバー側の検証は
+  「`未設定` またはマスタに存在する名前」を許可する（無効な担当者はプルダウンに出ない）
+
+### レスポンシブ（管理画面）
+
+営業担当者がスマートフォンから架電・更新することを想定し、以下で切り替える。
+判定は `src/admin/hooks/useBreakpoint.ts`（`matchMedia`）で行う。
+
+| 幅 | リード一覧 | リード詳細 |
+|---|---|---|
+| 1024px 以上（PC） | テーブル | 2カラム（左：診断 / 右：営業対応） |
+| 768〜1023px（タブレット） | テーブル | 2カラム |
+| 767px 以下（スマホ） | **カード** | **1カラム（営業操作を上部へ）** |
+
+- 電話番号は `tel:` リンク（発信は数字のみ・表示は整形済み）
+- スマホではフォーム部品・ボタンの高さを 44px、文字サイズを 16px へ拡大する
+  （`admin/index.html` のメディアクエリ。16px 未満だと iOS で入力時に自動ズームするため）
+- スマホのリード詳細には「電話する / 営業情報を保存」の固定アクションバーを表示する
+- ページ全体は横スクロールさせない（テーブルは自身の領域内でのみ横スクロール）
 
 ## ディレクトリ構成
 
@@ -211,14 +248,17 @@ src/
   types/diagnosis.ts          ドメイン型定義
   admin/                      ── 管理画面（診断アプリからは独立）──
     main.tsx                  /admin のエントリ
-    AdminApp.tsx              ヘッダー + 一覧⇄詳細の切り替え
-    AdminDashboard.tsx        サマリー・検索・一覧・自動更新
+    AdminApp.tsx              ヘッダー + 一覧⇄詳細⇄設定の切り替え
+    AdminDashboard.tsx        サマリー・検索・一覧・自動更新（PC=表 / スマホ=カード）
     LeadDetail.tsx            診断原本の表示 + 営業対応エリア + 営業履歴
+    SalesUsersScreen.tsx      営業担当者管理（#/settings/sales）
     api/client.ts             管理APIクライアント
-    config/sales.ts           営業ステータス・担当営業マスタ（サーバーと共用）
+    config/sales.ts           営業ステータス・予約語・入力上限（サーバーと共用）
+    hooks/useBreakpoint.ts    PC / タブレット / スマホの判定
+    hooks/useSalesUsers.ts    営業担当者マスタの取得・保持
     types.ts                  管理API の型（サーバーと共用）
     theme.ts / format.ts      管理画面のデザイントークン・表示整形
-    components/               SummaryCards / FilterBar / LeadTable / ui
+    components/               SummaryCards / FilterBar / LeadTable / LeadCards / ui
 admin/index.html              /admin のHTML
 index.html                    / のHTML
 functions/
@@ -228,16 +268,20 @@ functions/
     leads/index.ts            一覧（GET / 検索はPOST）
     leads/[id].ts             詳細（GET）・営業情報更新（PATCH）
     leads/[id]/activities.ts  営業履歴の追加（POST）
+    sales-users/index.ts      営業担当者マスタ（GET / POST）
+    sales-users/[id].ts       営業担当者の更新（PATCH）
   admin/_middleware.ts        管理画面HTMLの多重防御
   lib/adminAuth.ts            Cloudflare Access JWT の検証
   lib/http.ts                 レスポンス・入力検証の共通処理
   lib/leads.ts                リード検索条件の組み立て・詳細取得
+  lib/salesUsers.ts           営業担当者マスタの読み書き・担当者名の検証
   types.ts                    D1 / Pages Functions の最小型定義
 public/_headers               レスポンスヘッダー（セキュリティ）
 public/assets/                正式画像素材（ロゴ・コンパス）
 migrations/
   0001_create_diagnoses.sql   D1スキーマ（診断原本）
   0002_add_sales_management.sql 営業管理カラム + sales_activities
+  0003_add_sales_users.sql    営業担当者マスタ sales_users
 ```
 
 診断ロジックはUIコンポーネントへ一切ベタ書きしていない。

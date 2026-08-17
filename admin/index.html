@@ -35,15 +35,49 @@
       textarea {
         font-family: inherit;
       }
+      /* フォーム部品・ボタンの基本サイズ（スマホでは指で押しやすいサイズへ拡大する） */
+      .cc-admin-control {
+        height: 34px;
+        font-size: 13px;
+      }
+      textarea.cc-admin-control {
+        height: auto;
+      }
       .cc-admin-control:focus {
         border-color: #1b66f5;
         box-shadow: 0 0 0 3px rgba(27, 102, 245, 0.14);
+      }
+      .cc-admin-btn {
+        height: 34px;
+        font-size: 13px;
       }
       .cc-admin-row:hover > td {
         background: #f7faff;
       }
       table {
         font-variant-numeric: tabular-nums;
+      }
+
+      /* Mobile: 767px 以下 */
+      @media (max-width: 767px) {
+        /* 44px 以上のタップ領域を確保する。
+           iOS で入力時に自動ズームしないよう文字サイズは 16px 以上にする。 */
+        .cc-admin-control {
+          height: 44px;
+          font-size: 16px;
+        }
+        textarea.cc-admin-control {
+          height: auto;
+          min-height: 132px;
+        }
+        .cc-admin-btn {
+          height: 44px;
+          font-size: 14px;
+        }
+        /* 入力中に背景がズームしてレイアウトが崩れるのを防ぐ */
+        body {
+          -webkit-text-size-adjust: 100%;
+        }
       }
     </style>
   </head>

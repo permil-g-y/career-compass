@@ -14,6 +14,8 @@ import type {
   LeadListResponse,
   LeadQuery,
   LeadUpdateInput,
+  SalesUserInput,
+  SalesUsersResponse,
 } from '../types';
 
 const BASE = '/api/admin';
@@ -107,6 +109,27 @@ export const adminApi = {
       { method: 'POST', body: JSON.stringify(input) },
     );
   },
+
+  /* ---------------- 営業担当者マスタ ---------------- */
+
+  listSalesUsers(options: { activeOnly?: boolean; signal?: AbortSignal } = {}) {
+    const query = options.activeOnly ? '?active=1' : '';
+    return request<SalesUsersResponse>(`/sales-users${query}`, { signal: options.signal });
+  },
+
+  createSalesUser(input: { name: string; email: string | null }): Promise<SalesUsersResponse> {
+    return request<SalesUsersResponse>('/sales-users', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  updateSalesUser(id: number, input: SalesUserInput): Promise<SalesUsersResponse> {
+    return request<SalesUsersResponse>(`/sales-users/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
 };
 
 /** 画面へ表示するエラーメッセージへ変換する（内部情報は出さない） */
@@ -115,7 +138,9 @@ export function toErrorMessage(error: unknown): string {
     return '認証の有効期限が切れています。ページを再読み込みしてログインし直してください。';
   }
   if (error instanceof AdminApiError) {
-    if (error.status === 404) return '対象のリードが見つかりませんでした。';
+    if (error.status === 404) return '対象のデータが見つかりませんでした。';
+    if (error.status === 409) return 'その名前の営業担当者は既に登録されています。';
+    if (error.status === 400) return '入力内容を確認してください。';
     return '通信に失敗しました。時間をおいて再度お試しください。';
   }
   return '通信に失敗しました。時間をおいて再度お試しください。';

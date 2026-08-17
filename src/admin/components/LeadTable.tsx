@@ -5,7 +5,7 @@
  * 一覧のまま変更できるようにしている（変更は PATCH /api/admin/leads/:id）。
  */
 import type { CSSProperties } from 'react';
-import { SALES_PERSONS, SALES_STATUSES } from '../config/sales';
+import { SALES_STATUSES, salesPersonOptions } from '../config/sales';
 import { formatDateTime, formatPhone, isNewLead, isOverdue } from '../format';
 import { ADMIN_COLORS } from '../theme';
 import type { LeadSummary } from '../types';
@@ -53,6 +53,7 @@ export function LeadTable({
   leads,
   loading,
   updatingId,
+  salesNames,
   onOpen,
   onChangeStatus,
   onChangeAssigned,
@@ -61,6 +62,8 @@ export function LeadTable({
   loading: boolean;
   /** 更新中のリード（多重送信防止） */
   updatingId: string | null;
+  /** 有効な営業担当者名（sales_users マスタ由来） */
+  salesNames: string[];
   onOpen: (diagnosisId: string) => void;
   onChangeStatus: (diagnosisId: string, status: string) => void;
   onChangeAssigned: (diagnosisId: string, assigned: string) => void;
@@ -134,8 +137,8 @@ export function LeadTable({
                     value={lead.assigned_sales}
                     disabled={busy}
                     onChange={(value) => onChangeAssigned(lead.diagnosis_id, value)}
-                    options={SALES_PERSONS}
-                    style={{ width: 92, height: 30, fontSize: 12 }}
+                    options={salesPersonOptions(salesNames, lead.assigned_sales)}
+                    style={{ width: 96, height: 30, fontSize: 12 }}
                   />
                 </td>
                 <td style={{ ...tdStyle, color: ADMIN_COLORS.textSub }}>

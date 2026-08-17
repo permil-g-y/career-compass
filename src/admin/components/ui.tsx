@@ -137,11 +137,14 @@ export function Field({ label, children }: { label: string; children: ReactNode 
   );
 }
 
+/**
+ * フォーム部品の共通スタイル。
+ * 高さ・文字サイズは admin/index.html の .cc-admin-control に持たせており、
+ * スマートフォン幅では 44px / 16px へ自動的に拡大する。
+ */
 export const controlStyle: CSSProperties = {
   width: '100%',
-  height: 34,
   padding: '0 9px',
-  fontSize: 13,
   color: ADMIN_COLORS.text,
   background: ADMIN_COLORS.surface,
   border: `1px solid ${ADMIN_COLORS.line}`,
@@ -203,9 +206,7 @@ export function Button({
   style?: CSSProperties;
 }) {
   const base: CSSProperties = {
-    height: 34,
     padding: '0 14px',
-    fontSize: 13,
     fontWeight: 700,
     borderRadius: 6,
     cursor: disabled ? 'default' : 'pointer',
@@ -223,9 +224,51 @@ export function Button({
         };
 
   return (
-    <button type={type} onClick={onClick} disabled={disabled} style={{ ...base, ...variantStyle }}>
+    <button
+      type={type}
+      className="cc-admin-btn"
+      onClick={onClick}
+      disabled={disabled}
+      style={{ ...base, ...variantStyle }}
+    >
       {children}
     </button>
+  );
+}
+
+/** 電話発信ボタン（発信は数字のみ・表示は整形済みの番号） */
+export function CallButton({
+  phone,
+  label,
+  block,
+}: {
+  /** 数字のみの電話番号 */
+  phone: string;
+  label: string;
+  block?: boolean;
+}) {
+  return (
+    <a
+      className="cc-admin-btn"
+      href={`tel:${phone.replace(/[^0-9]/g, '')}`}
+      style={{
+        display: block ? 'flex' : 'inline-flex',
+        width: block ? '100%' : undefined,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        padding: '0 14px',
+        fontWeight: 700,
+        borderRadius: 6,
+        textDecoration: 'none',
+        background: ADMIN_COLORS.green,
+        color: '#FFFFFF',
+        border: `1px solid ${ADMIN_COLORS.green}`,
+      }}
+    >
+      <span aria-hidden="true">📞</span>
+      {label}
+    </a>
   );
 }
 

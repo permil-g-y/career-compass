@@ -9,12 +9,7 @@
  *
  * 認証は functions/api/admin/_middleware.ts で完了している。
  */
-import {
-  isSalesPerson,
-  isSalesStatus,
-  MAX_NOTE_LENGTH,
-  SALES_PERSONS,
-} from '../../../../../src/admin/config/sales';
+import { isSalesStatus, MAX_NOTE_LENGTH } from '../../../../../src/admin/config/sales';
 import {
   ERROR_BAD_REQUEST,
   ERROR_NOT_FOUND,
@@ -25,13 +20,14 @@ import {
   readJsonBody,
 } from '../../../../lib/http';
 import { asDiagnosisId, fetchLeadDetail } from '../../../../lib/leads';
+import { isAssignableSalesPerson, UNASSIGNED_SALES } from '../../../../lib/salesUsers';
 import type { Env, PagesFunction } from '../../../../types';
 
 const INSERT_ACTIVITY_SQL = `INSERT INTO sales_activities
   (diagnosis_id, sales_person, status, note, contacted_at, created_at)
 VALUES (?, ?, ?, ?, ?, ?)`;
 
-const UNASSIGNED = SALES_PERSONS[0];
+const UNASSIGNED = UNASSIGNED_SALES;
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const diagnosisId = asDiagnosisId(context.params.id);
@@ -40,9 +36,19 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const body = await readJsonBody(context.request);
   if (!body) return errorResponse(ERROR_BAD_REQUEST, 400);
 
-  // 担当営業は簡易マスタの値のみ受け付ける
-  if (!isSalesPerson(body.sales_person)) return errorResponse(ERROR_BAD_REQUEST, 400);
+  if (!context.env.DB) {
+    console.error('D1 binding is unavailable');
+    return errorResponse(ERROR_SERVER, 500);
+  }
+
+  // 担当営業は sales_users マスタ（または「未設定」）の値のみ受け付ける
   const salesPerson = body.sales_person;
+  if (
+    typeof salesPerson !== 'string' ||
+    !(await isAssignableSalesPerson(context.env.DB, salesPerson))
+  ) {
+    return errorResponse(ERROR_BAD_REQUEST, 400);
+  }
 
   // ステータスは省略可（メモだけを残すケース）
   let status: string | null = null;
@@ -75,11 +81,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       nextContactAt = asIsoDateTime(value);
       if (!nextContactAt) return errorResponse(ERROR_BAD_REQUEST, 400);
     }
-  }
-
-  if (!context.env.DB) {
-    console.error('D1 binding is unavailable');
-    return errorResponse(ERROR_SERVER, 500);
   }
 
   const now = new Date().toISOString();

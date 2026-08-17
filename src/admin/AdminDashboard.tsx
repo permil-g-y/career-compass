@@ -7,10 +7,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { adminApi, toErrorMessage } from './api/client';
 import { EMPTY_QUERY, FilterBar, isFiltered } from './components/FilterBar';
+import { LeadCards } from './components/LeadCards';
 import { LeadTable } from './components/LeadTable';
 import { SummaryCards } from './components/SummaryCards';
 import { Button, Card, ErrorMessage } from './components/ui';
 import { formatDateTime } from './format';
+import { useIsMobile } from './hooks/useBreakpoint';
 import { ADMIN_COLORS } from './theme';
 import type { LeadListResponse, LeadQuery, LeadSummary } from './types';
 
@@ -22,7 +24,15 @@ const QUERY_DEBOUNCE_MS = 300;
 
 const PAGE_SIZE = 100;
 
-export function AdminDashboard({ onOpenLead }: { onOpenLead: (diagnosisId: string) => void }) {
+export function AdminDashboard({
+  salesNames,
+  onOpenLead,
+}: {
+  /** 有効な営業担当者名（sales_users マスタ由来） */
+  salesNames: string[];
+  onOpenLead: (diagnosisId: string) => void;
+}) {
+  const isMobile = useIsMobile();
   const [query, setQuery] = useState<LeadQuery>(EMPTY_QUERY);
   const [appliedQuery, setAppliedQuery] = useState<LeadQuery>(EMPTY_QUERY);
   const [offset, setOffset] = useState(0);
@@ -124,7 +134,12 @@ export function AdminDashboard({ onOpenLead }: { onOpenLead: (diagnosisId: strin
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 14 }}>
       <SummaryCards stats={data?.stats ?? null} />
 
-      <FilterBar query={query} onChange={setQuery} onReset={() => setQuery(EMPTY_QUERY)} />
+      <FilterBar
+        query={query}
+        salesNames={salesNames}
+        onChange={setQuery}
+        onReset={() => setQuery(EMPTY_QUERY)}
+      />
 
       {error ? <ErrorMessage>{error}</ErrorMessage> : null}
 
@@ -134,8 +149,9 @@ export function AdminDashboard({ onOpenLead }: { onOpenLead: (diagnosisId: strin
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: 12,
-            padding: '10px 14px',
+            flexWrap: 'wrap',
+            gap: 8,
+            padding: isMobile ? '10px 12px' : '10px 14px',
             borderBottom: `1px solid ${ADMIN_COLORS.lineSoft}`,
           }}
         >
@@ -173,11 +189,23 @@ export function AdminDashboard({ onOpenLead }: { onOpenLead: (diagnosisId: strin
           >
             読み込み中…
           </p>
+        ) : isMobile ? (
+          /* スマホ幅では巨大なテーブルを横スクロールさせず、カード表示へ切り替える */
+          <LeadCards
+            leads={leads}
+            loading={loading}
+            updatingId={updatingId}
+            salesNames={salesNames}
+            onOpen={onOpenLead}
+            onChangeStatus={(id, status) => void patchLead(id, { sales_status: status })}
+            onChangeAssigned={(id, assigned) => void patchLead(id, { assigned_sales: assigned })}
+          />
         ) : (
           <LeadTable
             leads={leads}
             loading={loading}
             updatingId={updatingId}
+            salesNames={salesNames}
             onOpen={onOpenLead}
             onChangeStatus={(id, status) => void patchLead(id, { sales_status: status })}
             onChangeAssigned={(id, assigned) => void patchLead(id, { assigned_sales: assigned })}

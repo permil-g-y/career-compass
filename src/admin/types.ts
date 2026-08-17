@@ -5,7 +5,7 @@
  * 一般公開APIのレスポンスには一切含めない。
  */
 import type { ActionId, Grade, MainQuestionKey, ReadinessKey } from '../types/diagnosis';
-import type { SalesPerson, SalesStatus } from './config/sales';
+import type { SalesStatus } from './config/sales';
 
 /** 一覧テーブル1行分（管理画面要件定義書 8.3） */
 export interface LeadSummary {
@@ -17,7 +17,7 @@ export interface LeadSummary {
   overall_grade: Grade | null;
   career_type: string | null;
   sales_status: SalesStatus;
-  assigned_sales: SalesPerson;
+  assigned_sales: string;
   last_contacted_at: string | null;
   next_contact_at: string | null;
 }
@@ -41,6 +41,28 @@ export interface LeadListResponse {
   total: number;
   limit: number;
   offset: number;
+}
+
+/** 営業担当者マスタ（D1: sales_users） */
+export interface SalesUser {
+  id: number;
+  name: string;
+  email: string | null;
+  /** 1=有効 / 0=無効（無効でも過去の担当者名は保持される） */
+  is_active: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SalesUsersResponse {
+  sales_users: SalesUser[];
+}
+
+/** 営業担当者の追加・更新 */
+export interface SalesUserInput {
+  name?: string;
+  email?: string | null;
+  is_active?: boolean;
 }
 
 /** 営業履歴1件 */

@@ -9,7 +9,7 @@
  *
  * 認証は functions/api/admin/_middleware.ts で完了している。
  */
-import { isSalesPerson, isSalesStatus, SALES_STATUS } from '../../../../src/admin/config/sales';
+import { isSalesStatus, SALES_STATUS } from '../../../../src/admin/config/sales';
 import {
   ERROR_BAD_REQUEST,
   ERROR_NOT_FOUND,
@@ -20,6 +20,7 @@ import {
   readJsonBody,
 } from '../../../lib/http';
 import { asDiagnosisId, fetchLeadDetail } from '../../../lib/leads';
+import { isAssignableSalesPerson } from '../../../lib/salesUsers';
 import type { Env, PagesFunction } from '../../../types';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -52,6 +53,11 @@ export const onRequestPatch: PagesFunction<Env> = async (context) => {
   const body = await readJsonBody(context.request);
   if (!body) return errorResponse(ERROR_BAD_REQUEST, 400);
 
+  if (!context.env.DB) {
+    console.error('D1 binding is unavailable');
+    return errorResponse(ERROR_SERVER, 500);
+  }
+
   const assignments: string[] = [];
   const binds: unknown[] = [];
 
@@ -67,9 +73,13 @@ export const onRequestPatch: PagesFunction<Env> = async (context) => {
   }
 
   if ('assigned_sales' in body) {
-    if (!isSalesPerson(body.assigned_sales)) return errorResponse(ERROR_BAD_REQUEST, 400);
+    // 担当営業は sales_users マスタ（または「未設定」）の値のみ受け付ける
+    const assigned = body.assigned_sales;
+    if (typeof assigned !== 'string' || !(await isAssignableSalesPerson(context.env.DB, assigned))) {
+      return errorResponse(ERROR_BAD_REQUEST, 400);
+    }
     assignments.push('assigned_sales = ?');
-    binds.push(body.assigned_sales);
+    binds.push(assigned);
   }
 
   if ('next_contact_at' in body) {
@@ -90,11 +100,6 @@ export const onRequestPatch: PagesFunction<Env> = async (context) => {
 
   assignments.push('updated_at = ?');
   binds.push(new Date().toISOString());
-
-  if (!context.env.DB) {
-    console.error('D1 binding is unavailable');
-    return errorResponse(ERROR_SERVER, 500);
-  }
 
   try {
     const sql = `UPDATE diagnoses SET ${assignments.join(', ')} WHERE diagnosis_id = ?`;
