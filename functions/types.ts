@@ -25,21 +25,45 @@ export interface D1Database {
 }
 
 /**
- * Cloudflare Pages の binding。
+ * Cloudflare Pages の binding / 環境変数。
  * サーバー側でのみ参照され、フロントエンドのバンドルには一切含まれない。
  */
 export interface Env {
   /** D1 binding 名は DB を前提とする */
   DB: D1Database;
+
+  /* ---- 管理画面（/admin）の認証用。Cloudflare ダッシュボードで設定する ---- */
+
+  /** Cloudflare Access のチーム名（例: your-team / your-team.cloudflareaccess.com） */
+  ADMIN_ACCESS_TEAM_DOMAIN?: string;
+  /** Cloudflare Access アプリケーションの Application Audience (AUD) Tag */
+  ADMIN_ACCESS_AUD?: string;
+  /**
+   * ローカル開発（wrangler pages dev）でのみ認証を迂回するフラグ。
+   * .dev.vars へ "true" を設定した場合かつ localhost からのアクセス時のみ有効。
+   * 本番・Preview 環境には絶対に設定しない。
+   */
+  ADMIN_DEV_BYPASS?: string;
 }
 
-export interface EventContext<E> {
+/** 管理APIのミドルウェアが後続へ引き渡す認証情報 */
+export interface AdminAuthData {
+  admin?: {
+    /** Cloudflare Access で認証されたユーザーのメールアドレス */
+    email: string | null;
+  };
+}
+
+export interface EventContext<E, D = Record<string, unknown>> {
   request: Request;
   env: E;
   params: Record<string, string | string[]>;
+  data: D;
   waitUntil(promise: Promise<unknown>): void;
+  /** 後続のミドルウェア / 静的アセットへ処理を渡す */
+  next(): Promise<Response>;
 }
 
-export type PagesFunction<E = unknown> = (
-  context: EventContext<E>,
+export type PagesFunction<E = unknown, D = Record<string, unknown>> = (
+  context: EventContext<E, D>,
 ) => Response | Promise<Response>;
