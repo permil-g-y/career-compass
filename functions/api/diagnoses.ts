@@ -12,9 +12,13 @@
  * - 氏名・電話番号はログへ一切出力しない
  * - エラーレスポンスに内部構造・SQL・DB情報を含めない
  * - SQL は prepared statement + bind のみを使用する
+ *
+ * Slack 通知（functions/lib/slack.ts）は D1 保存が成功した後の付随処理として実行し、
+ * 通知の失敗が診断フロー・保存結果へ影響しないようにする。
  */
 import { DIAGNOSIS_COLUMNS } from '../../src/types/diagnosis';
 import type { DiagnosisPayload } from '../../src/types/diagnosis';
+import { notifyNewLead } from '../lib/slack';
 import type { Env, PagesFunction } from '../types';
 
 /** 受け付けるリクエストボディの上限 */
@@ -139,6 +143,13 @@ ON CONFLICT(diagnosis_id) DO UPDATE SET ${DIAGNOSIS_COLUMNS.filter((c) => c !== 
   .map((c) => `${c} = excluded.${c}`)
   .join(', ')}`;
 
+/**
+ * 保存前に同一 diagnosis_id の行が既にあるかを確認する。
+ * INSERT 自体は上書き（ON CONFLICT DO UPDATE）で重複行を作らないため、
+ * ここは「Slack へ二重通知しないため」だけに使う。保存処理には影響しない。
+ */
+const EXISTS_SQL = 'SELECT 1 AS existing FROM diagnoses WHERE diagnosis_id = ?';
+
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
 
@@ -192,10 +203,37 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 
   try {
+    // 保存前の状態を控えておく（再送信での二重通知を防ぐ）。
+    // ここでの失敗は保存を止めない。判定できない場合は通知する側に倒す。
+    let isNewLead = true;
+    try {
+      const existing = await env.DB.prepare(EXISTS_SQL)
+        .bind(row.diagnosis_id)
+        .first<number>('existing');
+      isNewLead = existing === null;
+    } catch (error) {
+      console.error('D1 duplicate check failed:', error instanceof Error ? error.name : 'unknown');
+    }
+
     const values = DIAGNOSIS_COLUMNS.map((column) => row[column] ?? null);
     await env.DB.prepare(INSERT_SQL)
       .bind(...values)
       .run();
+
+    // ---- ここから先は付随処理。失敗しても診断は正常完了として扱う ----
+    // 応答を待たせないよう waitUntil へ委ね、notifyNewLead 側で例外も握りつぶす。
+    if (isNewLead) {
+      context.waitUntil(
+        notifyNewLead(env, {
+          name: row.name,
+          graduation_year: row.graduation_year,
+          overall_grade: row.overall_grade,
+          career_type: row.career_type,
+          created_at: row.created_at,
+        }),
+      );
+    }
+
     // レスポンスには保存済みデータを含めない
     return json({ ok: true }, 201);
   } catch (error) {

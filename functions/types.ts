@@ -48,6 +48,21 @@ export interface Env {
    * 本番・Preview 環境には絶対に設定しない。
    */
   ADMIN_DEV_BYPASS?: string;
+
+  /* ---- 新規リードの Slack 通知（functions/lib/slack.ts） ---- */
+
+  /**
+   * Slack Incoming Webhook の URL。**Secret として登録する**（平文の変数にしない）。
+   * コードへ直接記載せず、フロントエンドへも渡さない。
+   */
+  SLACK_WEBHOOK_URL?: string;
+  /**
+   * 通知の有効・無効。"true" のときのみ送信する（未設定は無効）。
+   * Production のみ true とし、Preview は未設定のままにする。
+   */
+  SLACK_NOTIFICATIONS_ENABLED?: string;
+  /** 通知本文に載せる管理画面URL（未設定時はコード側の既定値を使う） */
+  SLACK_ADMIN_URL?: string;
 }
 
 /** 管理APIのミドルウェアが後続へ引き渡す認証情報 */

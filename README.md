@@ -219,6 +219,60 @@ npx wrangler d1 migrations apply career-compass-db --remote
 - スマホのリード詳細には「電話する / 営業情報を保存」の固定アクションバーを表示する
 - ページ全体は横スクロールさせない（テーブルは自身の領域内でのみ横スクロール）
 
+## Slack 通知（新規リード）
+
+診断回答が **D1 へ新規保存された直後**に、Slack Incoming Webhook で営業チャンネルへ通知する。
+
+| レイヤー | ファイル |
+|---|---|
+| 通知処理 | `functions/lib/slack.ts` |
+| 呼び出し元 | `functions/api/diagnoses.ts`（D1 保存成功後） |
+
+### 通知内容
+
+氏名 / 卒業年度 / 総合判定 / 就活タイプ / ステータス / 管理画面URL / 回答日時 のみ。
+
+**電話番号・Q1〜Q10 の回答内容・スコアの内訳は通知へ含めない。**
+営業上の詳細は Cloudflare Access で保護された管理画面から確認する設計とする。
+
+### 実行順序と失敗時の扱い
+
+```
+バリデーション → 既存行の有無を確認 → D1 へ INSERT（上書き） → 応答 201 を返す
+                                                              ↘ waitUntil で Slack へ送信
+```
+
+- Slack 通知は保存成功後の**付随処理**。`waitUntil` へ委ねるため応答をブロックしない
+- Webhook のエラー・タイムアウト（5秒）・ネットワーク障害はすべて `notifyNewLead` の内部で
+  握りつぶし、**例外を外へ投げない**。診断は正常完了（201）として扱い、D1 の保存も取り消さない
+- D1 の保存が失敗した場合（500）は通知しない
+
+### 二重通知の防止
+
+`POST /api/diagnoses` は同一 `diagnosis_id` を `ON CONFLICT DO UPDATE` で上書きするため、
+再送信でも行は増えないが**通知は再送され得る**。これを防ぐため、保存の直前に
+同じ `diagnosis_id` の行が既にあるかを確認し、**存在しなかった場合のみ**通知する。
+
+### 環境変数 / Secret
+
+Pages プロジェクト → Settings → Environment variables に設定する。
+
+| 変数名 | 種別 | Production | Preview |
+|---|---|---|---|
+| `SLACK_WEBHOOK_URL` | **Secret（暗号化）** | Webhook URL | 設定しない（テスト用チャンネルのURLなら可） |
+| `SLACK_NOTIFICATIONS_ENABLED` | 変数 | `true` | 設定しない（＝無効） |
+| `SLACK_ADMIN_URL` | 変数 | 任意（既定: `https://career-compass-admin.pages.dev/admin/`） | 任意 |
+
+- `SLACK_NOTIFICATIONS_ENABLED` が `true` のときだけ送信する。**未設定は無効**
+  （Preview から本番チャンネルへ通知が飛ばないようにするための安全弁）
+- Webhook URL は `https://hooks.slack.com/...` 以外を受け付けない（設定ミス時の誤送信防止）
+- **Webhook URL をコード・`README`・commit へ書かない。** ログにも出力しない
+- Webhook はサーバー（Pages Functions）からのみ呼び出す。
+  フロントエンドへ渡さず、公開JSバンドルには一切含まれない
+
+ローカルで通知まで確認する場合のみ、`.dev.vars`（gitignore 済み）へ
+テスト用ワークスペースの Webhook URL と `SLACK_NOTIFICATIONS_ENABLED=true` を置く。
+
 ## ディレクトリ構成
 
 ```
@@ -275,6 +329,7 @@ functions/
   lib/http.ts                 レスポンス・入力検証の共通処理
   lib/leads.ts                リード検索条件の組み立て・詳細取得
   lib/salesUsers.ts           営業担当者マスタの読み書き・担当者名の検証
+  lib/slack.ts                新規リードの Slack 通知（保存成功後の付随処理）
   types.ts                    D1 / Pages Functions の最小型定義
 public/_headers               レスポンスヘッダー（セキュリティ）
 public/assets/                正式画像素材（ロゴ・コンパス）
