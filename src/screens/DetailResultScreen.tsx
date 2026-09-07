@@ -52,6 +52,48 @@ const CTA_TEXT_STYLE = {
   textWrap: 'pretty',
 } as CSSProperties;
 
+/** 最終CTAで提示する3つのポイント */
+const CTA_POINTS = [
+  'どんなAIスキルを身につけるべきか',
+  'そのスキルをどう就活の武器にするか',
+  'AIを使って就活そのものをどう効率化するか',
+];
+
+const CTA_POINTS_STYLE = {
+  marginTop: 14,
+  background: 'rgba(255,255,255,.08)',
+  borderRadius: 16,
+  padding: '14px 16px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 10,
+} as CSSProperties;
+
+const CTA_POINT_STYLE = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  gap: 9,
+  fontSize: 13,
+  lineHeight: 1.7,
+  textAlign: 'left',
+  textWrap: 'pretty',
+} as CSSProperties;
+
+const CTA_POINT_MARK_STYLE = {
+  flex: 'none',
+  width: 6,
+  height: 6,
+  borderRadius: '50%',
+  background: COLORS.yellow,
+  marginTop: 8,
+} as CSSProperties;
+
+const CTA_NOTE_STYLE = {
+  fontSize: 11.5,
+  opacity: 0.75,
+  marginTop: 10,
+} as CSSProperties;
+
 /** 詳細診断結果（要件定義書 22〜29章） */
 export function DetailResultScreen({ result, name, ctaLabel, onCta, onRestart }: Props) {
   const greeting = `${name.trim() ? `${name.trim()}さんの` : ''}詳細結果をお届けします！`;
@@ -258,12 +300,28 @@ export function DetailResultScreen({ result, name, ctaLabel, onCta, onRestart }:
           }}
         >
           <div style={CTA_TITLE_STYLE}>
-            一人で進めるのが不安なら、
+            あなた専用の
             <br />
-            プロと一緒に整理しませんか？
+            「AI就活ロードマップ」を、
+            <br />
+            無料で作りませんか？
           </div>
           <p style={CTA_TEXT_STYLE}>
-            診断結果をもとに、あなたの現在地や目標に合わせて、今後の就活の進め方を整理できます。
+            私たちは、AIを「就活の武器」に変えるための学生向けキャリア支援を行っています。
+          </p>
+          <p style={{ ...CTA_TEXT_STYLE, margin: '10px 0 0' }}>
+            無料の「AI就活相談」では、プロが1対1であなたの診断結果や目標を整理。
+          </p>
+          <div style={CTA_POINTS_STYLE}>
+            {CTA_POINTS.map((point) => (
+              <div key={point} style={CTA_POINT_STYLE}>
+                <span style={CTA_POINT_MARK_STYLE} />
+                <span>{point}</span>
+              </div>
+            ))}
+          </div>
+          <p style={{ ...CTA_TEXT_STYLE, margin: '14px 0 0' }}>
+            まで、あなたに合わせたAI就活ロードマップを一緒に作ります。
           </p>
           <PrimaryButton
             onClick={onCta}
@@ -272,6 +330,7 @@ export function DetailResultScreen({ result, name, ctaLabel, onCta, onRestart }:
           >
             {ctaLabel}
           </PrimaryButton>
+          <div style={CTA_NOTE_STYLE}>オンライン・無料</div>
         </div>
 
         <PrimaryButton onClick={onRestart} variant="ghost" style={{ marginTop: 16 }}>

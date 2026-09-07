@@ -4,7 +4,7 @@
  */
 
 /** 最終CTAのラベル */
-export const FINAL_CTA_LABEL = 'キャリア相談について見る';
+export const FINAL_CTA_LABEL = '無料でAI就活相談を受ける';
 
 /** 最終CTAの遷移先。未設定（null）の場合は遷移しない。 */
 export const FINAL_CTA_URL: string | null = null;
