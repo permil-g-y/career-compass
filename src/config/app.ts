@@ -7,7 +7,8 @@
 export const FINAL_CTA_LABEL = '無料でAI就活相談を受ける';
 
 /** 最終CTAの遷移先。未設定（null）の場合は遷移しない。 */
-export const FINAL_CTA_URL: string | null = null;
+export const FINAL_CTA_URL: string | null =
+  'https://timerex.net/s/hokuto.fujii_70be_f232/593159f9';
 
 /** 診断完了演出の1ステップあたりの表示時間（ms） */
 export const ANALYZE_STEP_DURATION = 620;
