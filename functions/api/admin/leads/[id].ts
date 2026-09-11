@@ -20,6 +20,7 @@ import {
   readJsonBody,
 } from '../../../lib/http';
 import { asDiagnosisId, fetchLeadDetail } from '../../../lib/leads';
+import { PERSON_SCOPE_WHERE } from '../../../lib/personLeads';
 import { isAssignableSalesPerson } from '../../../lib/salesUsers';
 import type { Env, PagesFunction } from '../../../types';
 
@@ -102,7 +103,9 @@ export const onRequestPatch: PagesFunction<Env> = async (context) => {
   binds.push(new Date().toISOString());
 
   try {
-    const sql = `UPDATE diagnoses SET ${assignments.join(', ')} WHERE diagnosis_id = ?`;
+    // 営業情報は人物単位で扱うため、同一電話番号のすべての回答へ同じ値を反映する。
+    // 更新対象は 0002 で追加した営業管理カラムのみで、診断原本には触れない。
+    const sql = `UPDATE diagnoses SET ${assignments.join(', ')} WHERE ${PERSON_SCOPE_WHERE}`;
     const result = await context.env.DB.prepare(sql)
       .bind(...binds, diagnosisId)
       .run();

@@ -20,14 +20,17 @@ import {
 } from '../../../lib/http';
 import {
   DEFAULT_LIMIT,
-  LEAD_LIST_COLUMNS,
   asLimit,
   asOffset,
   buildLeadFilter,
   jstTodayStartIso,
-  orderByClause,
   type LeadFilterInput,
 } from '../../../lib/leads';
+import {
+  PERSON_COLUMNS,
+  PERSON_CTE,
+  personOrderByClause,
+} from '../../../lib/personLeads';
 import type { Env, PagesFunction } from '../../../types';
 
 interface CountRow {
@@ -39,18 +42,30 @@ interface StatsRow {
   not_called: number;
   recall: number;
   appointment: number;
+  unique_leads: number;
+  total_answers: number;
 }
 
 /**
  * 上部サマリーは絞り込み条件に依存しない全体値を返す（管理画面要件定義書 8.2）。
+ *
+ * すべて「人物単位（ユニーク電話番号）」で数える。成果報酬でのリード獲得数を
+ * 回答数ではなく実際のリード数で把握するため。
+ *
+ * today_new は「今日（JST）初めて登録された電話番号の人数」。
+ * 昨日までに回答済みの人が今日再回答しても新規には数えない。
+ *
  * ステータス名は簡易マスタ由来の定数で、値は bind で渡す。
  */
-const STATS_SQL = `SELECT
-  SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS today_new,
+const STATS_SQL = `${PERSON_CTE}
+SELECT
+  SUM(CASE WHEN first_answered_at >= ? THEN 1 ELSE 0 END) AS today_new,
   SUM(CASE WHEN sales_status = ? THEN 1 ELSE 0 END) AS not_called,
   SUM(CASE WHEN sales_status = ? THEN 1 ELSE 0 END) AS recall,
-  SUM(CASE WHEN sales_status = ? THEN 1 ELSE 0 END) AS appointment
-FROM diagnoses`;
+  SUM(CASE WHEN sales_status = ? THEN 1 ELSE 0 END) AS appointment,
+  COUNT(*) AS unique_leads,
+  SUM(answer_count) AS total_answers
+FROM person`;
 
 const STATUS_NOT_CALLED = SALES_STATUS.NOT_CALLED;
 const STATUS_RECALL = SALES_STATUS.RECALL;
@@ -65,14 +80,18 @@ async function listLeads(
     return errorResponse(ERROR_SERVER, 500);
   }
 
-  const filter = buildLeadFilter(input);
-  const order = orderByClause(input.sort);
+  // 登録日の絞り込みは「初回回答日」を対象にする（今日の新規と同じ基準にそろえる）
+  const filter = buildLeadFilter(input, { dateColumn: 'first_answered_at' });
+  const order = personOrderByClause(input.sort);
   const limit = asLimit(input.limit ?? DEFAULT_LIMIT);
   const offset = asOffset(input.offset);
 
   try {
-    const listSql = `SELECT ${LEAD_LIST_COLUMNS} FROM diagnoses ${filter.where} ORDER BY ${order} LIMIT ? OFFSET ?`;
-    const countSql = `SELECT COUNT(*) AS total FROM diagnoses ${filter.where}`;
+    // 同一電話番号の回答は1人1行へ集約したうえで絞り込み・並び替え・ページングする
+    const listSql = `${PERSON_CTE}
+SELECT ${PERSON_COLUMNS} FROM person ${filter.where} ORDER BY ${order} LIMIT ? OFFSET ?`;
+    const countSql = `${PERSON_CTE}
+SELECT COUNT(*) AS total FROM person ${filter.where}`;
 
     const [list, count, stats] = await Promise.all([
       env.DB.prepare(listSql)
@@ -92,6 +111,8 @@ async function listLeads(
         not_called: stats?.not_called ?? 0,
         recall: stats?.recall ?? 0,
         appointment: stats?.appointment ?? 0,
+        unique_leads: stats?.unique_leads ?? 0,
+        total_answers: stats?.total_answers ?? 0,
       },
       leads: list.results ?? [],
       total: count?.total ?? 0,

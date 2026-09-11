@@ -97,6 +97,28 @@ export function GradeBadge({ grade }: { grade: string | null }) {
   );
 }
 
+/** 同一電話番号で複数回答がある場合に出す小さなバッジ */
+export function AnswerCountBadge({ count }: { count: number }) {
+  if (!count || count <= 1) return null;
+  return (
+    <span
+      title="同じ電話番号での回答回数"
+      style={{
+        display: 'inline-block',
+        padding: '2px 6px',
+        borderRadius: 4,
+        fontSize: 10,
+        fontWeight: 800,
+        whiteSpace: 'nowrap',
+        background: ADMIN_COLORS.purpleBg,
+        color: ADMIN_COLORS.purple,
+      }}
+    >
+      回答{count}
+    </span>
+  );
+}
+
 export function NewBadge() {
   return (
     <span

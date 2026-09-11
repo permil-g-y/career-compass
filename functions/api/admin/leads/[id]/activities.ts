@@ -20,6 +20,7 @@ import {
   readJsonBody,
 } from '../../../../lib/http';
 import { asDiagnosisId, fetchLeadDetail } from '../../../../lib/leads';
+import { PERSON_SCOPE_WHERE } from '../../../../lib/personLeads';
 import { isAssignableSalesPerson, UNASSIGNED_SALES } from '../../../../lib/salesUsers';
 import type { Env, PagesFunction } from '../../../../types';
 
@@ -119,8 +120,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         contactedAt,
         now,
       ),
+      // 営業情報の同期も人物単位（同一電話番号のすべての回答）で行う
       context.env.DB.prepare(
-        `UPDATE diagnoses SET ${assignments.join(', ')} WHERE diagnosis_id = ?`,
+        `UPDATE diagnoses SET ${assignments.join(', ')} WHERE ${PERSON_SCOPE_WHERE}`,
       ).bind(...updateBinds, diagnosisId),
     ]);
 

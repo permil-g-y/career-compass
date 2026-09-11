@@ -161,8 +161,11 @@ export function AdminDashboard({
             </span>
             <span style={{ fontSize: 12, color: ADMIN_COLORS.textMuted }}>
               {isFiltered(appliedQuery) ? '絞り込み ' : ''}
-              {total}件
-              {total > PAGE_SIZE ? `（${offset + 1}〜${Math.min(offset + PAGE_SIZE, total)}件目）` : ''}
+              {total}人
+              {total > PAGE_SIZE ? `（${offset + 1}〜${Math.min(offset + PAGE_SIZE, total)}人目）` : ''}
+              {!isFiltered(appliedQuery) && data?.stats && data.stats.total_answers > data.stats.unique_leads
+                ? `　回答 ${data.stats.total_answers}件`
+                : ''}
             </span>
           </div>
 
@@ -226,10 +229,10 @@ export function AdminDashboard({
               disabled={!hasPrev}
               onClick={() => setOffset((prev) => Math.max(0, prev - PAGE_SIZE))}
             >
-              前の{PAGE_SIZE}件
+              前の{PAGE_SIZE}人
             </Button>
             <Button disabled={!hasNext} onClick={() => setOffset((prev) => prev + PAGE_SIZE)}>
-              次の{PAGE_SIZE}件
+              次の{PAGE_SIZE}人
             </Button>
           </div>
         ) : null}

@@ -5,6 +5,11 @@
  * ユーザー入力を SQL 文字列へ連結する箇所は存在しない
  * （並び替えのみ、固定の候補から選択した定数を使う）。
  */
+import {
+  fetchAnswerHistory,
+  fetchPersonActivities,
+  fetchPersonSales,
+} from './personLeads';
 import type { D1Database } from '../types';
 
 /** 一覧に返すカラム（氏名・電話番号は認証済み管理APIでのみ返す） */
@@ -101,7 +106,13 @@ export interface BuiltFilter {
  * 絞り込み条件から WHERE 句と bind 値を組み立てる。
  * 値はすべて bind で渡し、SQL 文字列へは埋め込まない。
  */
-export function buildLeadFilter(input: LeadFilterInput): BuiltFilter {
+export function buildLeadFilter(
+  input: LeadFilterInput,
+  options: { dateColumn?: string } = {},
+): BuiltFilter {
+  // 人物単位の一覧では初回回答日を対象にするため、対象カラムを差し替えられるようにする。
+  // 呼び出し側が渡すのは静的な定数のみ（ユーザー入力は渡さない）。
+  const dateColumn = options.dateColumn === 'first_answered_at' ? 'first_answered_at' : 'created_at';
   const conditions: string[] = [];
   const binds: unknown[] = [];
 
@@ -150,13 +161,13 @@ export function buildLeadFilter(input: LeadFilterInput): BuiltFilter {
 
   const from = jstDateToIso(input.date_from);
   if (from) {
-    conditions.push('created_at >= ?');
+    conditions.push(`${dateColumn} >= ?`);
     binds.push(from);
   }
 
   const to = jstDateToIso(input.date_to, 1);
   if (to) {
-    conditions.push('created_at < ?');
+    conditions.push(`${dateColumn} < ?`);
     binds.push(to);
   }
 
@@ -243,19 +254,38 @@ export const MAX_ACTIVITIES = 200;
 
 const DETAIL_SQL = `SELECT ${LEAD_DETAIL_COLUMNS} FROM diagnoses WHERE diagnosis_id = ?`;
 
-const ACTIVITIES_SQL = `SELECT id, sales_person, status, note, contacted_at, created_at
-FROM sales_activities
-WHERE diagnosis_id = ?
-ORDER BY contacted_at DESC, id DESC
-LIMIT ${MAX_ACTIVITIES}`;
-
-/** 診断原本 + 営業管理情報 + 営業履歴をまとめて取得する */
+/**
+ * 診断原本 + 営業管理情報 + 営業履歴をまとめて取得する。
+ *
+ * 診断内容（Q1〜Q10・判定など）は指定された diagnosis_id の回答そのものを返す。
+ * 一方、営業情報・営業履歴・回答履歴は「同一電話番号の人物」単位で集約する。
+ * これにより、同じ人が再回答して行が増えても営業状態が初期値へ巻き戻らない。
+ */
 export async function fetchLeadDetail(
   db: D1Database,
   diagnosisId: string,
 ): Promise<Record<string, unknown> | null> {
   const lead = await db.prepare(DETAIL_SQL).bind(diagnosisId).first<Record<string, unknown>>();
   if (!lead) return null;
-  const activities = await db.prepare(ACTIVITIES_SQL).bind(diagnosisId).all<Record<string, unknown>>();
-  return { ...lead, activities: activities.results ?? [] };
+
+  const [personSales, activities, answerHistory] = await Promise.all([
+    fetchPersonSales(db, diagnosisId),
+    fetchPersonActivities(db, diagnosisId),
+    fetchAnswerHistory(db, diagnosisId),
+  ]);
+
+  return {
+    ...lead,
+    // 営業情報は人物単位の代表値で上書きする（診断カラムには影響しない）
+    ...(personSales ?? {}),
+    activities,
+    answer_history: answerHistory,
+    answer_count: answerHistory.length,
+    first_answered_at: answerHistory.length
+      ? answerHistory[answerHistory.length - 1].created_at
+      : (lead.created_at as string),
+    last_answered_at: answerHistory.length
+      ? answerHistory[0].created_at
+      : (lead.created_at as string),
+  };
 }

@@ -39,7 +39,7 @@ import {
 } from './format';
 import { useIsMobile } from './hooks/useBreakpoint';
 import { ADMIN_COLORS } from './theme';
-import type { LeadDetailData } from './types';
+import type { AnswerHistoryEntry, LeadDetailData } from './types';
 
 const QUESTION_TITLES = new Map(QUESTIONS.map((question) => [question.key, question.title]));
 
@@ -50,11 +50,14 @@ export function LeadDetail({
   diagnosisId,
   salesNames,
   onBack,
+  onOpenAnswer,
 }: {
   diagnosisId: string;
   /** 有効な営業担当者名（sales_users マスタ由来） */
   salesNames: string[];
   onBack: () => void;
+  /** 同一人物の別の回答を開く */
+  onOpenAnswer: (diagnosisId: string) => void;
 }) {
   const isMobile = useIsMobile();
   const [lead, setLead] = useState<LeadDetailData | null>(null);
@@ -136,6 +139,7 @@ export function LeadDetail({
   const diagnosisBlocks = lead ? (
     <>
       <DiagnosisSummary lead={lead} isMobile={isMobile} />
+      <AnswerHistory lead={lead} currentId={diagnosisId} onOpenAnswer={onOpenAnswer} />
       <ReadinessTable lead={lead} />
       <AnswerList lead={lead} />
       <WeaknessAndActions lead={lead} isMobile={isMobile} />
@@ -718,6 +722,83 @@ function ActivityTimeline({ lead }: { lead: LeadDetailData }) {
             </div>
           ))
         )}
+      </div>
+    </Card>
+  );
+}
+
+/* ---------------- 回答履歴（同一電話番号） ---------------- */
+
+/**
+ * 同じ電話番号で複数回答がある場合に、過去の回答を一覧する。
+ * 各行を押すとその回答の診断内容へ切り替わる（診断原本は一切変更しない）。
+ */
+function AnswerHistory({
+  lead,
+  currentId,
+  onOpenAnswer,
+}: {
+  lead: LeadDetailData;
+  currentId: string;
+  onOpenAnswer: (diagnosisId: string) => void;
+}) {
+  const history: AnswerHistoryEntry[] = lead.answer_history ?? [];
+  if (history.length <= 1) return null;
+
+  return (
+    <Card>
+      <CardTitle>回答履歴（{history.length}回）</CardTitle>
+      <div style={{ padding: '6px 18px 14px' }}>
+        <p style={{ margin: '6px 0 10px', fontSize: 11, color: ADMIN_COLORS.textMuted }}>
+          同じ電話番号で複数回の回答があります。行を選ぶとその回の診断内容を表示します。
+        </p>
+        {history.map((entry, index) => {
+          const current = entry.diagnosis_id === currentId;
+          return (
+            <button
+              key={entry.diagnosis_id}
+              type="button"
+              onClick={() => onOpenAnswer(entry.diagnosis_id)}
+              disabled={current}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                width: '100%',
+                padding: '9px 10px',
+                marginBottom: 6,
+                textAlign: 'left',
+                borderRadius: 8,
+                border: `1px solid ${current ? ADMIN_COLORS.blue : ADMIN_COLORS.line}`,
+                background: current ? ADMIN_COLORS.blueBg : ADMIN_COLORS.surface,
+                cursor: current ? 'default' : 'pointer',
+                font: 'inherit',
+              }}
+            >
+              <span style={{ fontSize: 11, fontWeight: 800, color: ADMIN_COLORS.textMuted }}>
+                {index === 0 ? '最新' : `${history.length - index}回目`}
+              </span>
+              <span style={{ fontSize: 13, color: ADMIN_COLORS.text }}>
+                {formatDateTimeFull(entry.created_at)}
+              </span>
+              <GradeBadge grade={entry.overall_grade} />
+              <span
+                style={{
+                  fontSize: 12,
+                  color: ADMIN_COLORS.textSub,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {entry.career_type ?? '—'}
+              </span>
+              <span style={{ marginLeft: 'auto', fontSize: 11, color: ADMIN_COLORS.textMuted }}>
+                {current ? '表示中' : '開く'}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </Card>
   );

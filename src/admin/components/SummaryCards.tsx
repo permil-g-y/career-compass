@@ -7,7 +7,7 @@ import { ADMIN_COLORS } from '../theme';
 import type { LeadStats } from '../types';
 
 const ITEMS: { key: keyof LeadStats; label: string; color: string }[] = [
-  { key: 'today_new', label: '今日の新規', color: ADMIN_COLORS.blue },
+  { key: 'today_new', label: '今日の新規（初回登録）', color: ADMIN_COLORS.blue },
   { key: 'not_called', label: '未架電', color: ADMIN_COLORS.navy },
   { key: 'recall', label: '再架電', color: ADMIN_COLORS.purple },
   { key: 'appointment', label: '面談予約', color: ADMIN_COLORS.green },

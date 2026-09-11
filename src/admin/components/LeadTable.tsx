@@ -9,10 +9,10 @@ import { SALES_STATUSES, salesPersonOptions } from '../config/sales';
 import { formatDateTime, formatPhone, isNewLead, isOverdue } from '../format';
 import { ADMIN_COLORS } from '../theme';
 import type { LeadSummary } from '../types';
-import { Button, GradeBadge, NewBadge, Select } from './ui';
+import { AnswerCountBadge, Button, GradeBadge, NewBadge, Select } from './ui';
 
 const HEADERS = [
-  '登録日時',
+  '最新回答',
   '氏名',
   '電話番号',
   '卒業年度',
@@ -103,9 +103,17 @@ export function LeadTable({
               <tr key={lead.diagnosis_id} className="cc-admin-row">
                 <td style={tdStyle}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    {formatDateTime(lead.created_at)}
-                    {isNewLead(lead.created_at) ? <NewBadge /> : null}
+                    {formatDateTime(lead.last_answered_at ?? lead.created_at)}
+                    {isNewLead(lead.first_answered_at ?? lead.created_at) ? <NewBadge /> : null}
+                    <AnswerCountBadge count={lead.answer_count} />
                   </span>
+                  {lead.answer_count > 1 ? (
+                    <span
+                      style={{ display: 'block', fontSize: 10, color: ADMIN_COLORS.textMuted }}
+                    >
+                      初回 {formatDateTime(lead.first_answered_at)}
+                    </span>
+                  ) : null}
                 </td>
                 <td style={{ ...tdStyle, fontWeight: 700 }}>{lead.name}</td>
                 <td style={tdStyle}>

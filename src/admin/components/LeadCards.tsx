@@ -8,7 +8,7 @@ import { SALES_STATUSES, salesPersonOptions } from '../config/sales';
 import { formatDateTime, formatPhone, isNewLead, isOverdue } from '../format';
 import { ADMIN_COLORS } from '../theme';
 import type { LeadSummary } from '../types';
-import { Button, CallButton, Field, GradeBadge, NewBadge, Select } from './ui';
+import { AnswerCountBadge, Button, CallButton, Field, GradeBadge, NewBadge, Select } from './ui';
 
 function Meta({ label, value, alert }: { label: string; value: string; alert?: boolean }) {
   return (
@@ -86,7 +86,8 @@ export function LeadCards({
               <span style={{ fontSize: 17, fontWeight: 800, color: ADMIN_COLORS.navy }}>
                 {lead.name}
               </span>
-              {isNewLead(lead.created_at) ? <NewBadge /> : null}
+              {isNewLead(lead.first_answered_at ?? lead.created_at) ? <NewBadge /> : null}
+              <AnswerCountBadge count={lead.answer_count} />
               <span style={{ marginLeft: 'auto' }}>
                 <GradeBadge grade={lead.overall_grade} />
               </span>
@@ -119,7 +120,14 @@ export function LeadCards({
             >
               <Meta label="卒業年度" value={lead.graduation_year ?? '—'} />
               <Meta label="就活タイプ" value={lead.career_type ?? '—'} />
-              <Meta label="登録日時" value={formatDateTime(lead.created_at)} />
+              <Meta
+                label={lead.answer_count > 1 ? '初回 / 最新回答' : '登録日時'}
+                value={
+                  lead.answer_count > 1
+                    ? `${formatDateTime(lead.first_answered_at)} → ${formatDateTime(lead.last_answered_at)}`
+                    : formatDateTime(lead.created_at)
+                }
+              />
               <Meta
                 label="次回対応"
                 value={formatDateTime(lead.next_contact_at)}

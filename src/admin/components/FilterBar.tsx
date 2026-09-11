@@ -187,7 +187,7 @@ export function FilterBar({
             />
           </Field>
 
-          <Field label="登録日（開始）">
+          <Field label="初回回答日（開始）">
             <input
               className="cc-admin-control"
               type="date"
@@ -197,7 +197,7 @@ export function FilterBar({
             />
           </Field>
 
-          <Field label="登録日（終了）">
+          <Field label="初回回答日（終了）">
             <input
               className="cc-admin-control"
               type="date"

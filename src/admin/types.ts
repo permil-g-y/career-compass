@@ -20,11 +20,17 @@ export interface LeadSummary {
   assigned_sales: string;
   last_contacted_at: string | null;
   next_contact_at: string | null;
+  /** 同一電話番号の回答回数（1なら重複なし） */
+  answer_count: number;
+  /** 初回回答日時 */
+  first_answered_at: string;
+  /** 最新回答日時（created_at と同じ値） */
+  last_answered_at: string;
 }
 
 /** ダッシュボード上部のサマリー（管理画面要件定義書 8.2） */
 export interface LeadStats {
-  /** 今日（JST）の新規リード数 */
+  /** 今日（JST）初めて登録された電話番号の人数 */
   today_new: number;
   /** 未架電 */
   not_called: number;
@@ -32,6 +38,10 @@ export interface LeadStats {
   recall: number;
   /** 面談予約 */
   appointment: number;
+  /** ユニーク電話番号の総数（実際のリード数） */
+  unique_leads: number;
+  /** 回答の総数（重複を含む） */
+  total_answers: number;
 }
 
 export interface LeadListResponse {
@@ -65,6 +75,15 @@ export interface SalesUserInput {
   is_active?: boolean;
 }
 
+/** 同一電話番号の回答履歴1件 */
+export interface AnswerHistoryEntry {
+  diagnosis_id: string;
+  created_at: string;
+  overall_score: number | null;
+  overall_grade: Grade | null;
+  career_type: string | null;
+}
+
 /** 営業履歴1件 */
 export interface SalesActivity {
   id: number;
@@ -93,6 +112,8 @@ export type LeadDetailData = LeadSummary &
     action_3: ActionId | null;
     updated_at: string | null;
     activities: SalesActivity[];
+    /** 同一電話番号のすべての回答（新しい順） */
+    answer_history: AnswerHistoryEntry[];
   };
 
 export interface LeadDetailResponse {

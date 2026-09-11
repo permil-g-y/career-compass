@@ -104,6 +104,7 @@ export function AdminApp() {
             diagnosisId={selectedId}
             salesNames={salesUsers.activeNames}
             onBack={() => setSelectedId(null)}
+            onOpenAnswer={openLead}
           />
         ) : (
           <AdminDashboard salesNames={salesUsers.activeNames} onOpenLead={openLead} />
