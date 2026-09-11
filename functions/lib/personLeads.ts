@@ -25,6 +25,19 @@ import type { D1Database } from '../types';
 export const PHONE_KEY = `REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
   phone, '-', ''), '－', ''), 'ー', ''), '‐', ''), ' ', ''), '　', ''), '(', ''), ')', ''), '+', '')`;
 
+/** PHONE_KEY が SQL 側で除去するのと同じ文字（JS 側の正規化と定義をそろえる） */
+const PHONE_SEPARATORS = /[-－ー‐\s　()+]/g;
+
+/**
+ * 電話番号を PHONE_KEY と同じ規則で正規化する。
+ *
+ * SQL の比較対象（PHONE_KEY）は保存値を正規化するため、
+ * bind 側の値も同じ規則で正規化しないと表記揺れで一致しなくなる。
+ */
+export function normalizePhoneKey(phone: string): string {
+  return phone.replace(PHONE_SEPARATORS, '');
+}
+
 /**
  * 人物単位のビュー（CTE）。
  *

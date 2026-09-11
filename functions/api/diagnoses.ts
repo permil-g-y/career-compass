@@ -13,11 +13,15 @@
  * - エラーレスポンスに内部構造・SQL・DB情報を含めない
  * - SQL は prepared statement + bind のみを使用する
  *
+ * 新規リード受付の上限（src/config/intake.ts の LEAD_LIMIT）に達した場合、
+ * 新規の電話番号からの保存のみ 403 で拒否する。既存電話番号の再回答は常に受け付ける。
+ *
  * Slack 通知（functions/lib/slack.ts）は D1 保存が成功した後の付随処理として実行し、
  * 通知の失敗が診断フロー・保存結果へ影響しないようにする。
  */
 import { DIAGNOSIS_COLUMNS } from '../../src/types/diagnosis';
 import type { DiagnosisPayload } from '../../src/types/diagnosis';
+import { decideSave } from '../lib/intake';
 import { notifyNewLead } from '../lib/slack';
 import type { Env, PagesFunction } from '../types';
 
@@ -35,6 +39,8 @@ const DIAGNOSIS_ID_PATTERN = /^cc_[A-Za-z0-9-]{8,64}$/;
  */
 const ERROR_BAD_REQUEST = 'invalid request';
 const ERROR_SERVER = 'internal error';
+/** 新規リード受付の上限に達したときの応答（事業上の数値は返さない） */
+const ERROR_INTAKE_CLOSED = 'intake closed';
 
 function json(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
@@ -200,6 +206,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   if (!env.DB) {
     console.error('D1 binding is unavailable');
     return json({ ok: false, error: ERROR_SERVER }, 500);
+  }
+
+  // 新規リード受付の上限判定（D1 は読み取りのみ）。
+  // 同一電話番号の再回答は常に受け付けるため、既存リードの再送信は止まらない。
+  try {
+    const decision = await decideSave(env.DB, row.phone);
+    if (!decision.allowed) {
+      return json({ ok: false, error: ERROR_INTAKE_CLOSED }, 403);
+    }
+  } catch (error) {
+    // 判定できない場合は保存側へ倒す（障害で回答を取りこぼさない）
+    console.error('intake decision failed:', error instanceof Error ? error.name : 'unknown');
   }
 
   try {

@@ -11,7 +11,9 @@ import { EMPTY_LEAD_ERRORS, hasLeadFormError, normalizePhone, validateLeadForm }
 import { buildDiagnosisRecord, createDiagnosisId } from './storage/repository';
 import { getRepository, purgeLegacyPersonalInfo } from './storage/localStorageRepository';
 import { getRemoteRepository } from './storage/d1Repository';
+import { fetchIntakeOpen } from './storage/intakeApi';
 import { AnalyzingScreen } from './screens/AnalyzingScreen';
+import { ClosedScreen } from './screens/ClosedScreen';
 import { DetailResultScreen } from './screens/DetailResultScreen';
 import { LeadFormScreen } from './screens/LeadFormScreen';
 import { QuestionScreen } from './screens/QuestionScreen';
@@ -32,6 +34,8 @@ function createInitialAnswers(): AnswerState {
 
 export function App() {
   const [screen, setScreen] = useState<Screen>('top');
+  /** 新規受付の可否。null = 判定中。診断開始後は参照しない（途中で止めないため） */
+  const [intakeOpen, setIntakeOpen] = useState<boolean | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
   const [answers, setAnswers] = useState<AnswerState>(createInitialAnswers);
   const [analyzeStep, setAnalyzeStep] = useState(0);
@@ -58,6 +62,17 @@ export function App() {
     purgeLegacyPersonalInfo();
   }, []);
 
+  // 新規受付の可否を起動時に一度だけ確認する（判定中・失敗時は受付中として扱う）
+  useEffect(() => {
+    let cancelled = false;
+    void fetchIntakeOpen().then((open) => {
+      if (!cancelled) setIntakeOpen(open);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const goTo = useCallback((next: Screen) => {
     setScreen(next);
     window.scrollTo(0, 0);
@@ -80,10 +95,12 @@ export function App() {
   /* ---------------- 診断フロー ---------------- */
 
   const handleStart = useCallback(() => {
+    // 受付停止中は診断を開始させない
+    if (intakeOpen === false) return;
     setDiagnosisId(createDiagnosisId());
     setStepIndex(0);
     goTo('question');
-  }, [goTo]);
+  }, [goTo, intakeOpen]);
 
   const question = QUESTIONS[stepIndex];
   const answerKey: QuestionKey = question.key;
@@ -223,7 +240,15 @@ export function App() {
         position: 'relative',
       }}
     >
-      {screen === 'top' ? <TopScreen onStart={handleStart} /> : null}
+      {/*
+        受付判定は TOP 画面にだけ効かせる。診断を開始すると screen が 'top' を離れるため、
+        回答の途中で上限へ到達しても受付停止画面へ飛ばされることはない。
+      */}
+      {screen === 'top' && intakeOpen !== null
+        ? intakeOpen
+          ? <TopScreen onStart={handleStart} />
+          : <ClosedScreen />
+        : null}
 
       {screen === 'question' ? (
         <QuestionScreen
