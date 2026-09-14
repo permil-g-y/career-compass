@@ -153,6 +153,43 @@ localhost からのアクセスに限り認証を迂回できる。本番・Prev
 npx wrangler pages dev dist --d1 DB=career-compass-db
 ```
 
+### ログインできるユーザーの管理
+
+**ログインできる人はコードではなく Cloudflare Access のポリシーで決まる。**
+アプリ側にログイン画面・ユーザー一覧・パスワードは一切存在しない。
+そのためユーザーを増減してもコード変更・再デプロイは不要。
+
+- 認証を通過したユーザーは全員、同じ管理者権限で管理画面を利用できる
+  （コード側にメールアドレスの許可リストは持たない）
+- ログイン方法は Zero Trust の Identity provider 設定に従う
+  - **One-time PIN**（既定）… メールアドレスを入力 → 届いた確認コードで認証。パスワードは使わない
+  - **Google / Microsoft などの SSO** … 各自の既存アカウントでログイン
+- **どちらの場合もパスワードは本アプリに保存されない。**
+  リポジトリへメールアドレスやパスワードを書く必要はなく、書いてはいけない
+
+#### ユーザーを追加する
+
+1. https://one.dash.cloudflare.com → **Access** → **Applications**
+2. `career-compass-admin.pages.dev` のアプリケーションを開く → **Policies**
+3. 対象ポリシーの **Include** → Selector **Emails** に追加したいメールアドレスを足す
+4. 保存
+5. プレビューURLも使う場合は `career-compass-admin - Cloudflare Pages`（`*.career-compass-admin.pages.dev`）側のポリシーにも同じ追加を行う
+
+追加された人は、次回 `https://career-compass-admin.pages.dev/admin/` を開いたときから利用できる。
+既存ユーザーのログイン状態・セッションには影響しない。
+
+> 人数が増える場合は、Selector を **Emails ending in**（例: `@example.co.jp`）にするか、
+> Zero Trust の **Access Group** を作ってポリシーからそのグループを参照すると、
+> 以降の追加はグループへの追加だけで済む。
+
+#### ユーザーを削除する
+
+同じポリシーの Include からメールアドレス（またはグループのメンバー）を外す。
+既に発行済みのセッションを即座に失効させたい場合は
+**Access** → **Sessions**（または対象ユーザーの Revoke）からセッションを失効させる。
+
+削除しても、そのユーザーが記録した営業履歴・営業ステータスなどのデータは一切消えない。
+
 ### 管理画面のセキュリティ方針
 
 - 管理APIは `/api/admin/*` として一般公開APIと**ディレクトリごと分離**し、
