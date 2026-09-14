@@ -49,6 +49,13 @@ export interface Env {
    */
   ADMIN_DEV_BYPASS?: string;
 
+  /**
+   * 管理専用プロジェクトの目印。
+   * "true" のとき、ルート（/）を管理画面（/admin/）へ転送する。
+   * 公開用プロジェクトには設定しない（設定すると診断LPが管理画面へ飛んでしまう）。
+   */
+  ADMIN_ONLY?: string;
+
   /* ---- 新規リードの Slack 通知（functions/lib/slack.ts） ---- */
 
   /**
