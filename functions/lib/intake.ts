@@ -65,6 +65,10 @@ export type SaveDecision =
 export async function decideSave(db: D1Database, normalizedPhone: string): Promise<SaveDecision> {
   if (INTAKE_MODE === 'open') return { allowed: true, reason: 'mode_open' };
 
+  // 受付を明示的に停止しているときは D1 を参照せずに拒否する。
+  // D1 が読めない状況（障害・上限超過など）でも受付停止が確実に維持される。
+  if (INTAKE_MODE === 'closed') return { allowed: false, reason: 'limit_reached' };
+
   // SQL 側（PHONE_KEY）と同じ規則で正規化してから比較する
   const row = await db
     .prepare(INTAKE_CHECK_SQL)
@@ -74,8 +78,6 @@ export async function decideSave(db: D1Database, normalizedPhone: string): Promi
 
   // 同一人物の再回答はユニーク人数を増やさないため常に保存する
   if (row.existing_answers > 0) return { allowed: true, reason: 'existing_lead' };
-
-  if (INTAKE_MODE === 'closed') return { allowed: false, reason: 'limit_reached' };
 
   return row.unique_leads < LEAD_LIMIT + LEAD_LIMIT_GRACE
     ? { allowed: true, reason: 'within_limit' }

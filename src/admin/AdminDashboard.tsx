@@ -16,8 +16,15 @@ import { useIsMobile } from './hooks/useBreakpoint';
 import { ADMIN_COLORS } from './theme';
 import type { LeadListResponse, LeadQuery, LeadSummary } from './types';
 
-/** 自動更新の間隔（要件定義書 6章：10秒） */
-const REFRESH_INTERVAL_MS = 10_000;
+/**
+ * 自動更新の間隔。
+ *
+ * 一覧は同一電話番号での集約のために diagnoses を全走査する。
+ * 10秒間隔だと管理画面を開いている人数ぶん D1 の行読み取りが積み上がり、
+ * 無料枠の1日あたり上限に達して管理画面・受付判定の双方が止まったため、
+ * 60秒へ広げている（手動の「更新」ボタンはこれまでどおり即時反映）。
+ */
+const REFRESH_INTERVAL_MS = 60_000;
 
 /** 検索条件を反映するまでの待ち時間（入力のたびに送信しない） */
 const QUERY_DEBOUNCE_MS = 300;

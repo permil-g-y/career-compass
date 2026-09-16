@@ -31,7 +31,7 @@ export const LEAD_LIMIT_GRACE = 3;
  *   'open'   … 上限を無視して常に受け付ける（受付再開したいとき）
  *   'closed' … 件数に関わらず受付を停止する（緊急停止したいとき）
  */
-export const INTAKE_MODE: 'auto' | 'open' | 'closed' = 'auto';
+export const INTAKE_MODE: 'auto' | 'open' | 'closed' = 'closed';
 
 /** 上限到達の判定（人数から受付可否を求める） */
 export function isAcceptingLeads(uniqueLeads: number, limit: number = LEAD_LIMIT): boolean {
